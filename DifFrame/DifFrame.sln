@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30011.22
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleTester", "ConsoleTester\ConsoleTester.csproj", "{EE65A249-9DDD-4E55-8AE0-86EE587A67CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DifFrameEngine", "DifFrameEngine\DifFrameEngine.csproj", "{45F42CF3-C1ED-4925-9376-489D520EA215}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EE65A249-9DDD-4E55-8AE0-86EE587A67CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE65A249-9DDD-4E55-8AE0-86EE587A67CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE65A249-9DDD-4E55-8AE0-86EE587A67CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE65A249-9DDD-4E55-8AE0-86EE587A67CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45F42CF3-C1ED-4925-9376-489D520EA215}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45F42CF3-C1ED-4925-9376-489D520EA215}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45F42CF3-C1ED-4925-9376-489D520EA215}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45F42CF3-C1ED-4925-9376-489D520EA215}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9092B366-058A-40B4-AE1D-0671C027E81A}
+	EndGlobalSection
+EndGlobal
