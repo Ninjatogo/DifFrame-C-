@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 
 namespace DifFrameEngine
@@ -79,38 +80,32 @@ namespace DifFrameEngine
         {
             var workingSet = new Dictionary<int, Stack<(int FrameBlockX, int FrameBlockY)>>();
             var itemsAdded = 0;
+
+            var _temp_dictionary_keys = _diff_block_temporary_dictionary.Keys.ToImmutableSortedSet();
+
             if(_temp_block_count >= inWorkingSetSize)
             {
-                foreach (var pair in _diff_block_temporary_dictionary)
+                foreach (var key in _temp_dictionary_keys)
                 {
-                    if(_diff_block_temporary_dictionary[pair.Key].Count > 0)
+                    while (_diff_block_temporary_dictionary.ContainsKey(key) && _diff_block_temporary_dictionary[key].Count > 0)
                     {
-                        while(_diff_block_temporary_dictionary.ContainsKey(pair.Key))
+                        if (itemsAdded < inWorkingSetSize)
                         {
-                            if(itemsAdded < inWorkingSetSize)
+                            if (workingSet.ContainsKey(key) == false)
                             {
-                                if(workingSet.ContainsKey(pair.Key) == false)
-                                {
-                                    workingSet[pair.Key] = new Stack<(int FrameBlockX, int FrameBlockY)>();
-                                }
-                                if (_diff_block_temporary_dictionary[pair.Key].Count > 0)
-                                {
-                                    workingSet[pair.Key].Push(_diff_block_temporary_dictionary[pair.Key].Pop());
-                                    _temp_block_count--;
-                                    itemsAdded++;
-                                }
-                                else
-                                {
-                                    break;
-                                }
+                                workingSet[key] = new Stack<(int FrameBlockX, int FrameBlockY)>();
                             }
-                            else
-                            {
-                                break;
-                            }
+
+                            workingSet[key].Push(_diff_block_temporary_dictionary[key].Pop());
+                            _temp_block_count--;
+                            itemsAdded++;
+                        }
+                        else
+                        {
+                            break;
                         }
                     }
-                    if(itemsAdded >= inWorkingSetSize)
+                    if (itemsAdded >= inWorkingSetSize)
                     {
                         break;
                     }

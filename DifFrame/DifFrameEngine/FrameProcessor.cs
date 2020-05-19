@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -38,6 +39,7 @@ namespace DifFrameEngine
         private string _inputFrameDirectory;
         private double _similarityThreshold;
         private int _miniBatchSize;
+        
 
         public FrameProcessor(string input_frame_directory, double similarity_threshold, int inMiniBatchSize = 2)
         {
@@ -56,26 +58,14 @@ namespace DifFrameEngine
             SetDicingRate();
         }
 
-        /*
-        class FrameProcessor:
-            frameCollector: FrameCollector
-
-            def __init__(self, in_frame_input_directory, in_similarity_threshold):
-                self.currentFrameIndex = -10
-                self.currentFrameData = np.array([[0, 0, 0], [0, 0, 0]], np.uint8)
-                self.frameCollector = FrameCollector()
-                self.frameInputDirectoryPath = in_frame_input_directory
-                self.frameInputPaths = []
-                self.frameDeltaPaths = []
-                self.similarityThreshold = in_similarity_threshold
-                self.frameHeight = 1
-                self.frameWidth = 1
-                self.frameDivisionDimensionX = 1
-                self.frameDivisionDimensionY = 1
-                self.miniBatchSize = 4
-                self.load_file_paths()
-                self.set_dicing_rate(1)
-        */        
+        private void LoadFilePaths()
+        {
+            foreach (string path in Directory.EnumerateFiles(_inputFrameDirectory))
+            {
+                _inputFramesFileNames.Add(path);
+            }
+            _inputFramesFileNames = _inputFramesFileNames.CustomSort().ToList();
+        }
 
         private void SaveSingleImageToDisk(string inFileName, Mat inFileData)
         {
@@ -120,7 +110,7 @@ namespace DifFrameEngine
             var w = _frameWidth / _frameDivisionDimensionX;
 
             var colorFrameBlock = _currentFrameData[y, y + h, x, x + w];
-            colorFrameBlock.CopyMakeBorder(2, 2, 2, 2, BorderTypes.Replicate);
+            colorFrameBlock = colorFrameBlock.CopyMakeBorder(2, 2, 2, 2, BorderTypes.Replicate);
 
             return colorFrameBlock;
         }
@@ -131,26 +121,30 @@ namespace DifFrameEngine
             var workingSetTupleList = new List<(int frameNumber, (int blockXPos, int blockYPos))>();
             var imageStrips = new List<Mat>();
 
-            foreach(var pair in workingSetDictionary)
+            var workingSetDictionaryKeysSorted = workingSetDictionary.Keys.ToImmutableSortedSet();
+
+            foreach(var key in workingSetDictionaryKeysSorted)
             {
-                foreach(var blockPos in pair.Value)
+                foreach (var blockPos in workingSetDictionary[key])
                 {
-                    workingSetTupleList.Add((pair.Key, blockPos));
+                    workingSetTupleList.Add((key, blockPos));
                 }
             }
 
+            int tupleIndexTracker = 0;
             for(int y = 0; y < inCropHSize; y++)
             {
                 // Start off image array with one frame block to give loop something to append to
-                UpdateLoadedFrame(workingSetTupleList[y * inCropHSize].frameNumber);
-                var imageStrip = ExtractDifferences(workingSetTupleList[y * inCropHSize].Item2.blockXPos, workingSetTupleList[y * inCropHSize].Item2.blockYPos);
-
-                var currentTupleSelection = workingSetTupleList[y * inCropHSize];
+                var currentTupleSelection = workingSetTupleList[tupleIndexTracker];
+                tupleIndexTracker++;
+                UpdateLoadedFrame(currentTupleSelection.frameNumber);
+                var imageStrip = ExtractDifferences(currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos);
                 _frameCollector.CollectStorageBlock(currentTupleSelection.frameNumber, currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos, inDeltaFileName, 0, y);
 
                 for(int x = 0; x < inCropWSize - 1; x++)
                 {
-                    currentTupleSelection = workingSetTupleList[(x + 1) + (y * inCropWSize)];
+                    currentTupleSelection = workingSetTupleList[tupleIndexTracker];
+                    tupleIndexTracker++;
                     UpdateLoadedFrame(currentTupleSelection.frameNumber);
                     var frameData = ExtractDifferences(currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos);
                     Cv2.HConcat(imageStrip, frameData, imageStrip);
@@ -170,10 +164,48 @@ namespace DifFrameEngine
             return imageBuffer;
         }
 
+        private void IdentifyDifferencesSingleFrame(int inFileIndex)
+        {
+            if (inFileIndex + 1 < _inputFramesFileNames.Count)
+            {
+                var frameA = Cv2.ImRead(_inputFramesFileNames[inFileIndex]);
+                var frameB = Cv2.ImRead(_inputFramesFileNames[inFileIndex + 1]);
+
+                var frameAResized = ScaleFrame(frameA);
+                var frameBResized = ScaleFrame(frameB);
+
+                var grayFrameA = new Mat();
+                var grayFrameB = new Mat();
+                Cv2.CvtColor(frameAResized, grayFrameA, ColorConversionCodes.RGB2GRAY);
+                Cv2.CvtColor(frameBResized, grayFrameB, ColorConversionCodes.RGB2GRAY);
+
+                Parallel.For(0, _frameDivisionDimensionY, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, ih =>
+                {
+                    for (int iw = 0; iw < _frameDivisionDimensionX; iw++)
+                    {
+                        var x = grayFrameA.Width / _frameDivisionDimensionX * iw;
+                        var y = grayFrameA.Height / _frameDivisionDimensionY * ih;
+                        var h = grayFrameA.Height / _frameDivisionDimensionY;
+                        var w = grayFrameA.Width / _frameDivisionDimensionX;
+
+                        var grayFrameBlockA = grayFrameA[y, y + h, x, x + w];
+                        var grayFrameBlockB = grayFrameB[y, y + h, x, x + w];
+
+                        var qualityMetrics = QualityPSNR.Compute(grayFrameBlockA, grayFrameBlockB, null);
+
+                        if (qualityMetrics.Val0 <= _similarityThreshold)
+                        {
+                            _frameCollector.CollectTempBlock(inFileIndex, iw, ih);
+                        }
+                    }
+                });
+            }
+        }
+
         public void GenerateAndSaveDeltaFrame()
         {
             var tempBatchCollection = new List<(string fileName, Mat fileData)>();
-            while(_frameCollector.IsWorkingSetReady(_frameDivisionDimensionX * _frameDivisionDimensionY))
+            while (_frameCollector.IsWorkingSetReady(_frameDivisionDimensionX * _frameDivisionDimensionY))
             {
                 var currentFileName = _frameCollector.GetCurrentStoreDictFilename();
                 var currentImageBuffer = GenerateDeltaFrame(currentFileName.Item1, _frameDivisionDimensionX, _frameDivisionDimensionY);
@@ -192,56 +224,18 @@ namespace DifFrameEngine
             SaveImageBatchToDisk(tempBatchCollection);
         }
 
-        private void IdentifyDifferencesSingleFrame(int inFileIndex)
-        {
-            if(inFileIndex + 1 < _inputFramesFileNames.Count)
-            {
-                var frameA = Cv2.ImRead(_inputFramesFileNames[inFileIndex]);
-                var frameB = Cv2.ImRead(_inputFramesFileNames[inFileIndex + 1]);
-
-                var frameAResized = ScaleFrame(frameA);
-                var frameBResized = ScaleFrame(frameB);
-
-                var grayFrameA = new Mat();
-                var grayFrameB = new Mat();
-                Cv2.CvtColor(frameAResized, grayFrameA, ColorConversionCodes.RGB2GRAY);
-                Cv2.CvtColor(frameBResized, grayFrameB, ColorConversionCodes.RGB2GRAY);
-
-                for(int ih = 0; ih < _frameDivisionDimensionY; ih++)
-                {
-                    for (int iw = 0; iw < _frameDivisionDimensionX; iw++)
-                    {
-                        var x = grayFrameA.Width / _frameDivisionDimensionX * iw;
-                        var y = grayFrameA.Height / _frameDivisionDimensionY * ih;
-                        var h = grayFrameA.Height / _frameDivisionDimensionY;
-                        var w = grayFrameA.Width / _frameDivisionDimensionX;
-
-                        var grayFrameBlockA = grayFrameA[y, y + h, x, x + w];
-                        var grayFrameBlockB = grayFrameB[y, y + h, x, x + w];
-
-                        var similarityScore = QualitySSIM.Compute(grayFrameBlockA, grayFrameBlockB, null).Val0;
-
-                        if(similarityScore <= _similarityThreshold)
-                        {
-                            _frameCollector.CollectTempBlock(inFileIndex, iw, ih);
-                        }
-                    }
-                }
-            }
-        }
-
         public void IdentifyDifferences(int[] inFileIndices = null)
         {
-            if(inFileIndices != null)
+            if (inFileIndices != null)
             {
-                Parallel.ForEach(inFileIndices, (index) =>
+                Parallel.ForEach(inFileIndices, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (index) =>
                 {
                     IdentifyDifferencesSingleFrame(index);
                 });
             }
             else
             {
-                Parallel.For(0, _inputFramesFileNames.Count, index =>
+                Parallel.For(0, _inputFramesFileNames.Count, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, index =>
                 {
                     IdentifyDifferencesSingleFrame(index);
                 });
@@ -270,15 +264,6 @@ namespace DifFrameEngine
                     Console.ResetColor();
                 }
             }
-        }
-
-        private void LoadFilePaths()
-        {
-            foreach (string path in Directory.EnumerateFiles(_inputFrameDirectory))
-            {
-                _inputFramesFileNames.Add(path);
-            }
-            _inputFramesFileNames = _inputFramesFileNames.CustomSort().ToList();
         }
     }
 }
