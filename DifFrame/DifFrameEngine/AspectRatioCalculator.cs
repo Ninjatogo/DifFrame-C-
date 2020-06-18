@@ -1,4 +1,4 @@
-﻿namespace DifFrameEngine
+﻿namespace Difframe
 {
     public static class AspectRatioCalculator
     {

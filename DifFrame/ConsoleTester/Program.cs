@@ -1,5 +1,5 @@
 ﻿using System;
-using DifFrameEngine;
+using Difframe;
 
 namespace ConsoleTester
 {
@@ -8,8 +8,7 @@ namespace ConsoleTester
         static void Main(string[] args)
         {
             Console.WriteLine("DifFrame engine starting.");
-            var engine = new DifFrameEngine.DifFrameEngine("SampleFrames-Mob_Psycho_100");
-            engine.ProcessVideoCompleteLoop();
+            //
         }
     }
 }

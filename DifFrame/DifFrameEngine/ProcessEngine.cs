@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using OpenCvSharp;
 using OpenCvSharp.Quality;
 
-namespace DifFrameEngine
+namespace Difframe
 {
     public static class MyExtensions
     {
@@ -26,7 +26,7 @@ namespace DifFrameEngine
 
     }
 
-    class FrameProcessor
+    public class ProcessEngine
     {
         private FrameCollector _frameCollector;
         private int _currentFrameIndex;
@@ -39,23 +39,28 @@ namespace DifFrameEngine
         private string _inputFrameDirectory;
         private double _similarityThreshold;
         private int _miniBatchSize;
+        private bool _readyToProcess;
         
 
-        public FrameProcessor(string input_frame_directory, double similarity_threshold, int inMiniBatchSize = 2)
+        public ProcessEngine(double inSimilarityThreshold, string inFrameDirectory = null, int inMiniBatchSize = 2)
         {
             _frameCollector = new FrameCollector();
             _currentFrameIndex = -10;
             _currentFrameData = new Mat();
             _inputFramesFileNames = new List<string>();
-            _inputFrameDirectory = input_frame_directory;
-            _similarityThreshold = similarity_threshold;
+            _similarityThreshold = inSimilarityThreshold;
             _miniBatchSize = inMiniBatchSize;
             _frameWidth = 1;
             _frameHeight = 1;
             _frameDivisionDimensionX = 1;
             _frameDivisionDimensionY = 1;
-            LoadFilePaths();
-            SetDicingRate();
+            if(inFrameDirectory != null)
+            {
+                _inputFrameDirectory = inFrameDirectory;
+                LoadFilePaths();
+                SetDicingRate();
+                _readyToProcess = true;
+            }
         }
 
         private void LoadFilePaths()
@@ -204,41 +209,47 @@ namespace DifFrameEngine
 
         public void GenerateAndSaveDeltaFrame()
         {
-            var tempBatchCollection = new List<(string fileName, Mat fileData)>();
-            while (_frameCollector.IsWorkingSetReady(_frameDivisionDimensionX * _frameDivisionDimensionY))
+            if (_readyToProcess)
             {
-                var currentFileName = _frameCollector.GetCurrentStoreDictFilename();
-                var currentImageBuffer = GenerateDeltaFrame(currentFileName.Item1, _frameDivisionDimensionX, _frameDivisionDimensionY);
-                tempBatchCollection.Add((currentFileName.Item2, currentImageBuffer));
-                _frameCollector.IncrementStorageDictFilename();
-
-                if (tempBatchCollection.Count > Environment.ProcessorCount * _miniBatchSize)
+                var tempBatchCollection = new List<(string fileName, Mat fileData)>();
+                while (_frameCollector.IsWorkingSetReady(_frameDivisionDimensionX * _frameDivisionDimensionY))
                 {
-                    Parallel.ForEach(tempBatchCollection, (batchItem) =>
+                    var currentFileName = _frameCollector.GetCurrentStoreDictFilename();
+                    var currentImageBuffer = GenerateDeltaFrame(currentFileName.Item1, _frameDivisionDimensionX, _frameDivisionDimensionY);
+                    tempBatchCollection.Add((currentFileName.Item2, currentImageBuffer));
+                    _frameCollector.IncrementStorageDictFilename();
+
+                    if (tempBatchCollection.Count > Environment.ProcessorCount * _miniBatchSize)
                     {
-                        SaveSingleImageToDisk(batchItem.fileName, batchItem.fileData);
-                    });
-                    tempBatchCollection.Clear();
+                        Parallel.ForEach(tempBatchCollection, (batchItem) =>
+                        {
+                            SaveSingleImageToDisk(batchItem.fileName, batchItem.fileData);
+                        });
+                        tempBatchCollection.Clear();
+                    }
                 }
+                SaveImageBatchToDisk(tempBatchCollection);
             }
-            SaveImageBatchToDisk(tempBatchCollection);
         }
 
         public void IdentifyDifferences(int[] inFileIndices = null)
         {
-            if (inFileIndices != null)
+            if (_readyToProcess)
             {
-                Parallel.ForEach(inFileIndices, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (index) =>
+                if (inFileIndices != null)
                 {
-                    IdentifyDifferencesSingleFrame(index);
-                });
-            }
-            else
-            {
-                Parallel.For(0, _inputFramesFileNames.Count, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, index =>
+                    Parallel.ForEach(inFileIndices, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (index) =>
+                    {
+                        IdentifyDifferencesSingleFrame(index);
+                    });
+                }
+                else
                 {
-                    IdentifyDifferencesSingleFrame(index);
-                });
+                    Parallel.For(0, _inputFramesFileNames.Count, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, index =>
+                    {
+                        IdentifyDifferencesSingleFrame(index);
+                    });
+                }
             }
         }
 
@@ -264,6 +275,34 @@ namespace DifFrameEngine
                     Console.ResetColor();
                 }
             }
+        }
+
+        public void SetMiniBatchSize(int inMiniBatchSize = 2)
+        {
+            _miniBatchSize = inMiniBatchSize;
+        }
+
+        public void SetSimilarityThreshold(double inSimilarityThreshold)
+        {
+            _similarityThreshold = inSimilarityThreshold;
+        }
+
+        public bool ReadyToProcess()
+        {
+            return _readyToProcess;
+        }
+
+        public void UpdateProjectInput(string inFrameDirectory)
+        {
+            _inputFrameDirectory = inFrameDirectory;
+            LoadFilePaths();
+            SetDicingRate();
+            _readyToProcess = true;
+        }
+
+        public int[] GetDifferenceBlocks()
+        {
+            //
         }
     }
 }

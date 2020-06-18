@@ -1,28 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Difframe;
 using NetworkDataTools;
 
 namespace SyncronousTaskServer
 {
-    public class SynchronousSocketListener
+    public class NetworkServer
     {
-        private static Stack<int> testRange = new Stack<int>();
-        private static string GetChecksum(string inFileLocation)
+        private double _similarityThreshold;
+        private int _miniBatchSize;
+        private ProcessEngine _engine;
+
+        public NetworkServer(double inSimilarityThreshold, int inMiniBatchSize)
         {
-            using (var stream = new BufferedStream(File.OpenRead(inFileLocation), 1200000))
-            {
-                SHA256Managed sha = new SHA256Managed();
-                byte[] checksum = sha.ComputeHash(stream);
-                return BitConverter.ToString(checksum).Replace("-", String.Empty);
-            }
+            _similarityThreshold = inSimilarityThreshold;
+            _miniBatchSize = inMiniBatchSize;
+            _engine = new ProcessEngine(_similarityThreshold, null, _miniBatchSize);
         }
 
+        private static Stack<int> testRange = new Stack<int>();
+        
         private static int[] GetNextFrameRange(int inMaxLength = 10)
         {
             var currentRange = new List<int>();
@@ -49,58 +50,59 @@ namespace SyncronousTaskServer
             }
         }
 
-        private static string ClientInitiation(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
+        private string ClientInitiation(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
         {
             string clientName = null;
 
             // Handshake Loop - Abort if loop fails 10 times
             for(var i = 0; i < 10; i++)
             {
-                // Byte buffer for received client messages
-                var bytes = new byte[4096];
-
-                // String buffer for received client messages
-                string data = null;
-
-                // Byte array for converted messages to send to client
-                var msg = Encoding.ASCII.GetBytes(inFileName);
-
                 // Send video filename to client
-                inHandler.Send(msg);
+                NT.SendString(inHandler, inFileName);
 
-                // Receive response from client
-                var bytesRec = inHandler.Receive(bytes);
-                data = Encoding.ASCII.GetString(bytes, 0, bytesRec);
+                // Receive filename echo from client
+                var data = NT.ReceiveString(inHandler);
 
                 // If client doesn't echo filename restart handshaking loop 
-                if(data != inFileName)
+                if (data != inFileName)
                 {
                     // Send fail message to client
-                    msg = Encoding.ASCII.GetBytes("FAIL");
-                    inHandler.Send(msg);
+                    NT.SendString(inHandler, "FAIL");
                     continue;
                 }
 
                 // Send video file location to client
-                msg = Encoding.ASCII.GetBytes(inFileLocation);
-                inHandler.Send(msg);
+                NT.SendString(inHandler, inFileLocation);
+
+                // Receive file location echo from client
+                data = NT.ReceiveString(inHandler);
+
+                // Send similarity threshold to client
+                NT.SendDouble(inHandler, _similarityThreshold);
+
+                // Receive threshold echo from client
+                var echoThreshold = NT.ReceiveDouble(inHandler);
+
+                // Send mini batch size to client
+                NT.SendInt(inHandler, _miniBatchSize);
+
+                // Receive batch size echo from client
+                var echoBatchSize = NT.ReceiveInt(inHandler);
+
 
                 // Receive checksum response from client
-                bytesRec = inHandler.Receive(bytes);
-                data = Encoding.ASCII.GetString(bytes, 0, bytesRec);
+                data = NT.ReceiveString(inHandler);
 
                 // If returned checksum matches what server has calculated
-                if(data == inChecksum)
+                if (data == inChecksum)
                 {
                     // Send file good confirmation to client
-                    msg = Encoding.ASCII.GetBytes("OK");
-                    inHandler.Send(msg);
+                    NT.SendString(inHandler, "OK");
 
                     // Receive client name
-                    bytesRec = inHandler.Receive(bytes);
-                    data = Encoding.ASCII.GetString(bytes, 0, bytesRec);
+                    data = NT.ReceiveString(inHandler);
 
-                    if(data != "FAIL")
+                    if (data != "FAIL")
                     {
                         // Proceed to connection handler stage 2
                         clientName = data;
@@ -113,8 +115,7 @@ namespace SyncronousTaskServer
                 else
                 {
                     // Send fail message to client
-                    msg = Encoding.ASCII.GetBytes("FAIL");
-                    inHandler.Send(msg);
+                    NT.SendString(inHandler, "FAIL");
                     continue;
                 }
             }
@@ -122,7 +123,7 @@ namespace SyncronousTaskServer
             return clientName;
         }
 
-        private static void IssueClientFrameProcessRequests(Socket inHandler)
+        private void IssueClientFrameProcessRequests(Socket inHandler)
         {
             while (true)
             {
@@ -148,7 +149,7 @@ namespace SyncronousTaskServer
             }
         }
 
-        public static Task HandleNewConnection(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
+        public Task HandleNewConnection(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
         {
             return Task.Run(() =>
             {
@@ -177,8 +178,10 @@ namespace SyncronousTaskServer
             });
         }
 
-        public static void StartServerListener()
+        public void StartServerListener(string inProjectFolder)
         {
+            _engine.UpdateProjectInput(inProjectFolder);
+
             // Establish the local endpoint for the socket.  
             // Dns.GetHostName returns the name of the
             // host running the application.  
@@ -216,53 +219,6 @@ namespace SyncronousTaskServer
             }
             Console.WriteLine("\nPress ENTER to continue...");
             Console.ReadLine();
-        }
-
-        public static int Main(string[] args)
-        {
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            testRange.Push(1);
-            testRange.Push(2);
-            testRange.Push(3);
-            testRange.Push(4);
-            Console.WriteLine("Starting task-based server...");
-            StartServerListener();
-            return 0;
         }
     }
 }

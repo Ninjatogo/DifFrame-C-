@@ -5,7 +5,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="OpenCvSharp4.Windows" Version="4.3.0.20200421" />
+    <PackageReference Include="LiteDB" Version="5.0.8" />
+    <PackageReference Include="OpenCvSharp4.Windows" Version="4.3.0.20200524" />
   </ItemGroup>
 
 </Project>

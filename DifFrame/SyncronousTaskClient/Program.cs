@@ -3,111 +3,78 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using Difframe;
 using NetworkDataTools;
 
 namespace SyncronousTaskClient
 {
-    class SyncronousTaskClient
+    public class NetworkClient
     {
-        public static Task HandleNewConnection(Socket inHandler)
+        private ProcessEngine _engine;
+
+        public NetworkClient()
         {
-            return Task.Run(() =>
-            {
-                // Data buffer for incoming data.  
-                byte[] bytes = new byte[1200];
-
-                // Incoming data from the client.
-                string data = null;
-
-                // An incoming connection needs to be processed.  
-                while (true)
-                {
-                    int bytesRec = inHandler.Receive(bytes);
-                    data += Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                    if (data.IndexOf("<EOF>") > -1)
-                    {
-                        break;
-                    }
-                }
-
-                // Show the data on the console.  
-                Console.WriteLine("Text received : {0}", data);
-
-                // Echo the data back to the client.  
-                byte[] msg = Encoding.ASCII.GetBytes(data);
-
-                inHandler.Send(msg);
-                inHandler.Shutdown(SocketShutdown.Both);
-                inHandler.Close();
-            });
+            //
         }
 
-        private static (bool sucessfulInitiaition, string fileName, string fileLocation) ServerInitiation(Socket inHandler)
+        private (bool sucessfulInitiaition, double similarityThreshold, int miniBatchSize, string fileLocation) ServerInitiation(Socket inHandler)
         {
-            string _fileName = null;
             string _fileLocation = null;
-            var initiationSuccessful = false;
+            var _initiationSuccessful = false;
+            double _similarityThreshold = 0.0;
+            int _miniBatchSize = 0;
 
             // Handshake Loop - Abort if loop fails 10 times
             for (var i = 0; i < 10; i++)
             {
-                // Byte buffer for received server messages
-                var bytes = new byte[4096];
-
                 // Receive filename from server
-                var bytesRec = inHandler.Receive(bytes);
-                _fileName = Encoding.ASCII.GetString(bytes, 0, bytesRec);
-
-                // Byte array for converted messages to send to server
-                var msg = Encoding.ASCII.GetBytes(_fileName);
+                var _fileName = NT.ReceiveString(inHandler);
 
                 // Echo video filename to server
-                inHandler.Send(msg);
+                NT.SendString(inHandler, _fileName);
 
                 // Receive file location from server
-                bytesRec = inHandler.Receive(bytes);
-                _fileLocation = Encoding.ASCII.GetString(bytes, 0, bytesRec);
+                _fileLocation = NT.ReceiveString(inHandler);
+                if(_fileLocation == "FAIL")
+                {
+                    continue;
+                }
+
+                // Echo file location
+                NT.SendString(inHandler, _fileLocation);
 
                 // Send file checksum to ensure both machines are referring to same file
-                msg = Encoding.ASCII.GetBytes("file checksum test");
-                inHandler.Send(msg);
+                NT.SendString(inHandler, "file checksum test");
 
                 // Receive "file good" confirmation from server
-                bytesRec = inHandler.Receive(bytes);
-                var response = Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                if(response == "OK")
+                var response = NT.ReceiveString(inHandler);
+                if (response == "OK")
                 {
                     // Send machine name to server
-                    msg = Encoding.ASCII.GetBytes("client_name");
-                    inHandler.Send(msg);
+                    NT.SendString(inHandler, "client_name");
 
-                    initiationSuccessful = true;
+                    _initiationSuccessful = true;
                     break;
                 }
             }
 
             // Proceed to connection handler stage 2
-            return (initiationSuccessful, _fileName, _fileLocation);
+            return (_initiationSuccessful, _similarityThreshold, _miniBatchSize, _fileLocation);
         }
 
-        private static void ReceiveFrameProcessRequests(Socket inHandler)
+        private void ReceiveFrameProcessRequests(Socket inHandler)
         {
             while (true)
             {
                 var frameRangeToProcess = NT.ReceiveIntCollections(inHandler);
-                foreach (var arr in frameRangeToProcess.collections)
+                if (frameRangeToProcess.receivedSuccessfully)
                 {
-                    Console.WriteLine("Array contents: ");
-                    foreach (var num in arr)
+                    foreach(var arr in frameRangeToProcess.collections)
                     {
-                        Console.Write($"{num}, ");
+                        _engine.IdentifyDifferences(arr);
                     }
-                    Console.WriteLine();
                 }
-
-                if (frameRangeToProcess.receivedSuccessfully == false)
+                else
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"Frame range to process count: {frameRangeToProcess.collections.Count}");
@@ -116,68 +83,72 @@ namespace SyncronousTaskClient
                 }
 
                 // Process data for frame range
-                var processedData = new List<int>() { 11, 23, 36 };
+                var processedData = _engine.GetDifferenceBlocks();
 
-                NT.SendIntCollections(inHandler, processedData.ToArray());
+                NT.SendIntCollections(inHandler, processedData);
             }
         }
 
-        public static void StartClient()
+        public void StartClient(IPAddress inIpAddress, int inPort = 11000)
         {
-            try
+            // Abort if loop fails 10 times
+            for (var i = 0; i < 10; i++)
             {
-                // Establish the remote endpoint for the socket.
-                var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
-                var ipAddress = ipHostInfo.AddressList[0];
-                var remoteEP = new IPEndPoint(ipAddress, 11000);
-
-                // Create a TCP/IP  socket.  
-                using var sender = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 try
                 {
-                    sender.Connect(remoteEP);
+                    var remoteEP = new IPEndPoint(inIpAddress, inPort);
 
-                    var resultsTuple = ServerInitiation(sender);
-                    ReceiveFrameProcessRequests(sender);
-                }
-                catch (ArgumentNullException ane)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("ArgumentNullException : {0}", ane.ToString());
-                    Console.ResetColor();
-                }
-                catch (SocketException se)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("SocketException : {0}", se.ToString());
-                    Console.ResetColor();
+                    // Create a TCP/IP  socket.  
+                    using var sender = new Socket(inIpAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    try
+                    {
+                        sender.Connect(remoteEP);
+
+                        var resultsTuple = ServerInitiation(sender);
+
+                        if (resultsTuple.sucessfulInitiaition)
+                        {
+                            _engine = new ProcessEngine();
+                            // TODO: Update server initiation to pass back similarity threshold, mini batch size and dice rate
+                            _engine.SyncEngineSettings();
+                            _engine.UpdateEngineProjectFolder(resultsTuple.fileLocation);
+
+                            ReceiveFrameProcessRequests(sender);
+                        }
+                    }
+                    catch (ArgumentNullException ane)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("ArgumentNullException : {0}", ane.ToString());
+                        Console.ResetColor();
+                    }
+                    catch (SocketException se)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("SocketException : {0}", se.ToString());
+                        Console.ResetColor();
+                    }
+                    catch (Exception e)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("Unexpected exception : {0}", e.ToString());
+                        Console.ResetColor();
+                    }
+                    finally
+                    {
+                        // Release the socket.
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("Socket shutdown!");
+                        sender.Shutdown(SocketShutdown.Both);
+                        sender.Close();
+                        Console.ResetColor();
+                    }
                 }
                 catch (Exception e)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Unexpected exception : {0}", e.ToString());
-                    Console.ResetColor();
-                }
-                finally
-                {
-                    // Release the socket.
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Socket shutdown!");
-                    sender.Shutdown(SocketShutdown.Both);
-                    sender.Close();
-                    Console.ResetColor();
+                    Console.WriteLine(e.ToString());
                 }
             }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-        }
-
-        static void Main(string[] args)
-        {
-            StartClient();
-            Console.ReadLine();
         }
     }
 }

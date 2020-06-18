@@ -4,4 +4,10 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DifFrameEngine\DifFrameEngine.csproj" />
+    <ProjectReference Include="..\SyncronousTaskClient\SyncronousTaskClient.csproj" />
+    <ProjectReference Include="..\SyncronousTaskServer\SyncronousTaskServer.csproj" />
+  </ItemGroup>
+
 </Project>

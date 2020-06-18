@@ -36,6 +36,8 @@ After the difference collection is upscaled, the frame can be divided again to p
 
 ##### void IncrementStorageDictFilename()
 
+
+
 ## Frame Processor
 
 ##### FrameProcessor(string input_frame_directory, double similarity_threshold, int inMiniBatchSize = 2)
@@ -46,15 +48,21 @@ After the difference collection is upscaled, the frame can be divided again to p
 
 ##### void SetDicingRate(int inRate=2)
 
+
+
 ## Aspect Ratio Calculator
 
 ##### (int X, int Y) CalculateAspectRatio(int inWidth, int inHeight)
+
+
 
 ## Diff-Frame Engine
 
 ##### DifFrameEngine(string input_frames_filepath, double similarity_threshold = 34.50)
 
 ##### void ProcessVideoCompleteLoop()
+
+
 
 ## Network Data Tools
 
@@ -72,9 +80,16 @@ After the difference collection is upscaled, the frame can be divided again to p
 
 ##### int ConvertByteArrayToInt(byte[] inArray)
 
+
+
 ## Network Client
 
 ##### void StartClient()
+
+1. Starts initiation process with specified server
+2. Once initiated, begins accepting frame process requests and returns processed frame blocks to server
+
+
 
 ## Network Server
 
@@ -85,3 +100,5 @@ After the difference collection is upscaled, the frame can be divided again to p
 
 ##### Task HandleNewConnection(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
 
+1. Initiates client with server processing project
+2. Once client is initiated, server starts issuing frame process requests and receiving processed frame block

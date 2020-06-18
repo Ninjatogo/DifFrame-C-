@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 
-namespace DifFrameEngine
+namespace Difframe
 {
     class FrameCollector
     {

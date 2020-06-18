@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace NetworkDataTools
 {
@@ -12,6 +15,20 @@ namespace NetworkDataTools
         public static void SendInt(Socket inHandler, int inInt)
         {
             inHandler.Send(DT.ConvertIntToByteArray(inInt));
+        }
+
+        public static void SendDouble(Socket inHandler, double inDouble)
+        {
+            SendString(inHandler, DT.ConvertDoubleToString(inDouble));
+        }
+
+        public static void SendString(Socket inHandler, string inString)
+        {
+            // Byte array for converted messages to send to server
+            var msg = Encoding.ASCII.GetBytes(inString);
+
+            // Send message to server
+            inHandler.Send(msg);
         }
 
         /// <summary>
@@ -88,6 +105,24 @@ namespace NetworkDataTools
             var numberOfArraysToExpect = DT.ConvertByteArrayToInt(bytesTrimmed);
 
             return numberOfArraysToExpect;
+        }
+
+        public static double ReceiveDouble(Socket inHandler)
+        {
+            var number = ReceiveString(inHandler);
+            return DT.ConvertStringToDouble(number);
+        }
+
+        public static string ReceiveString(Socket inHandler)
+        {
+            // Byte buffer for received server messages
+            var bytes = new byte[4096];
+
+            // Receive message from server
+            var bytesRec = inHandler.Receive(bytes);
+            var message = Encoding.ASCII.GetString(bytes, 0, bytesRec);
+
+            return message;
         }
 
         /// <summary>
@@ -226,6 +261,21 @@ namespace NetworkDataTools
             return BitConverter.GetBytes(convertedInt1);
         }
 
+        public static string ConvertDoubleToString(double inDouble)
+        {
+            var invC = CultureInfo.InvariantCulture.NumberFormat;
+            return inDouble.ToString("r", invC);
+        }
+
+        public static double ConvertStringToDouble(string inString)
+        {
+            NumberStyles _numberStyle = NumberStyles.Any;
+            var invC = CultureInfo.InvariantCulture.NumberFormat;
+            double _num;
+            double.TryParse(inString, _numberStyle, invC, out _num);
+            return _num;
+        }
+
         /// <summary>
         /// Use when receiving ints over the network. Converts byte array to big-endian int then to host order int format.
         /// </summary>
@@ -235,6 +285,16 @@ namespace NetworkDataTools
         {
             var convertedInt3 = BitConverter.ToInt32(inArray);
             return IPAddress.NetworkToHostOrder(convertedInt3);
+        }
+
+        public static string GetChecksum(string inFileLocation)
+        {
+            using (var stream = new BufferedStream(File.OpenRead(inFileLocation), 1200000))
+            {
+                SHA256Managed sha = new SHA256Managed();
+                byte[] checksum = sha.ComputeHash(stream);
+                return BitConverter.ToString(checksum).Replace("-", String.Empty);
+            }
         }
     }
 }
