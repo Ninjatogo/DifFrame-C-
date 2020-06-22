@@ -13,12 +13,12 @@ namespace SyncronousTaskServer
     {
         private double _similarityThreshold;
         private int _miniBatchSize;
+        private bool _endConnectionSignalReceived;
         private ProcessEngine _engine;
 
-        public NetworkServer(double inSimilarityThreshold, int inMiniBatchSize)
+        public NetworkServer()
         {
-            _similarityThreshold = inSimilarityThreshold;
-            _miniBatchSize = inMiniBatchSize;
+            _endConnectionSignalReceived = false;
             _engine = new ProcessEngine(_similarityThreshold, null, _miniBatchSize);
         }
 
@@ -57,44 +57,50 @@ namespace SyncronousTaskServer
             // Handshake Loop - Abort if loop fails 10 times
             for(var i = 0; i < 10; i++)
             {
+                var failureDetected = false;
+
                 // Send video filename to client
                 NT.SendString(inHandler, inFileName);
-
                 // Receive filename echo from client
                 var data = NT.ReceiveString(inHandler);
-
                 // If client doesn't echo filename restart handshaking loop 
                 if (data != inFileName)
                 {
-                    // Send fail message to client
-                    NT.SendString(inHandler, "FAIL");
-                    continue;
+                    failureDetected = true;
                 }
 
                 // Send video file location to client
                 NT.SendString(inHandler, inFileLocation);
-
                 // Receive file location echo from client
                 data = NT.ReceiveString(inHandler);
+                if (data != inFileLocation)
+                {
+                    failureDetected = true;
+                }
 
                 // Send similarity threshold to client
                 NT.SendDouble(inHandler, _similarityThreshold);
-
                 // Receive threshold echo from client
                 var echoThreshold = NT.ReceiveDouble(inHandler);
+                if (echoThreshold != _similarityThreshold)
+                {
+                    failureDetected = true;
+                }
 
                 // Send mini batch size to client
                 NT.SendInt(inHandler, _miniBatchSize);
-
                 // Receive batch size echo from client
                 var echoBatchSize = NT.ReceiveInt(inHandler);
-
+                if (echoBatchSize != _miniBatchSize)
+                {
+                    failureDetected = true;
+                }
 
                 // Receive checksum response from client
                 data = NT.ReceiveString(inHandler);
 
                 // If returned checksum matches what server has calculated
-                if (data == inChecksum)
+                if ((data == inChecksum) && failureDetected == false)
                 {
                     // Send file good confirmation to client
                     NT.SendString(inHandler, "OK");
@@ -102,15 +108,12 @@ namespace SyncronousTaskServer
                     // Receive client name
                     data = NT.ReceiveString(inHandler);
 
-                    if (data != "FAIL")
-                    {
-                        // Proceed to connection handler stage 2
-                        clientName = data;
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine("Client completed initiation handshake.");
-                        Console.ResetColor();
-                        break;
-                    }
+                    // Proceed to connection handler stage 2
+                    clientName = data;
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Client completed initiation handshake.");
+                    Console.ResetColor();
+                    break;
                 }
                 else
                 {
@@ -149,7 +152,7 @@ namespace SyncronousTaskServer
             }
         }
 
-        public Task HandleNewConnection(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
+        private Task HandleNewConnection(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
         {
             return Task.Run(() =>
             {
@@ -178,8 +181,10 @@ namespace SyncronousTaskServer
             });
         }
 
-        public void StartServerListener(string inProjectFolder)
+        public void StartServerListener(string inProjectFolder, double inSimilarityThreshold = 34.50, int inMiniBatchSize = 2, int inPort = 11000)
         {
+            _similarityThreshold = inSimilarityThreshold;
+            _miniBatchSize = inMiniBatchSize;
             _engine.UpdateProjectInput(inProjectFolder);
 
             // Establish the local endpoint for the socket.  
@@ -187,7 +192,7 @@ namespace SyncronousTaskServer
             // host running the application.  
             var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
             var ipAddress = ipHostInfo.AddressList[0];
-            var localEndPoint = new IPEndPoint(ipAddress, 11000);
+            var localEndPoint = new IPEndPoint(ipAddress, inPort);
 
             // Create a TCP/IP socket.  
             using (var listener = new Socket(ipAddress.AddressFamily,
@@ -202,7 +207,7 @@ namespace SyncronousTaskServer
                     listener.Listen(10);
 
                     // Start listening for connections.  
-                    while (true)
+                    while (_endConnectionSignalReceived == false)
                     {
                         Console.WriteLine("Waiting for a connection...");
                         // Program is suspended while waiting for an incoming connection.  
@@ -210,7 +215,6 @@ namespace SyncronousTaskServer
                         Console.WriteLine("Connection received and being handled");
                         HandleNewConnection(handler, "file name test", "file location test", "file checksum test");
                     }
-
                 }
                 catch (Exception e)
                 {
@@ -219,6 +223,11 @@ namespace SyncronousTaskServer
             }
             Console.WriteLine("\nPress ENTER to continue...");
             Console.ReadLine();
+        }
+
+        public void StopServer()
+        {
+            //
         }
     }
 }

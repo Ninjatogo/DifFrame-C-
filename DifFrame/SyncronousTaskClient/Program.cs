@@ -29,19 +29,23 @@ namespace SyncronousTaskClient
             {
                 // Receive filename from server
                 var _fileName = NT.ReceiveString(inHandler);
-
                 // Echo video filename to server
                 NT.SendString(inHandler, _fileName);
 
                 // Receive file location from server
                 _fileLocation = NT.ReceiveString(inHandler);
-                if(_fileLocation == "FAIL")
-                {
-                    continue;
-                }
-
                 // Echo file location
                 NT.SendString(inHandler, _fileLocation);
+
+                // Receive similarity threshold from server
+                _similarityThreshold = NT.ReceiveDouble(inHandler);
+                // Echo similarity threshold
+                NT.SendDouble(inHandler, _similarityThreshold);
+
+                // Receive mini batch size from server
+                _miniBatchSize = NT.ReceiveInt(inHandler);
+                // Echo mini batch size
+                NT.SendInt(inHandler, _miniBatchSize);
 
                 // Send file checksum to ensure both machines are referring to same file
                 NT.SendString(inHandler, "file checksum test");
@@ -85,6 +89,7 @@ namespace SyncronousTaskClient
                 // Process data for frame range
                 var processedData = _engine.GetDifferenceBlocks();
 
+                // Send processed results back to server
                 NT.SendIntCollections(inHandler, processedData);
             }
         }
@@ -108,12 +113,10 @@ namespace SyncronousTaskClient
 
                         if (resultsTuple.sucessfulInitiaition)
                         {
-                            _engine = new ProcessEngine();
-                            // TODO: Update server initiation to pass back similarity threshold, mini batch size and dice rate
-                            _engine.SyncEngineSettings();
-                            _engine.UpdateEngineProjectFolder(resultsTuple.fileLocation);
+                            Console.WriteLine("Initiated with server successfully.");
+                            //_engine = new ProcessEngine(resultsTuple.similarityThreshold, resultsTuple.fileLocation, resultsTuple.miniBatchSize);
 
-                            ReceiveFrameProcessRequests(sender);
+                            //ReceiveFrameProcessRequests(sender);
                         }
                     }
                     catch (ArgumentNullException ane)
@@ -149,6 +152,11 @@ namespace SyncronousTaskClient
                     Console.WriteLine(e.ToString());
                 }
             }
+        }
+
+        public void StopClient()
+        {
+            //
         }
     }
 }

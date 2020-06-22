@@ -42,7 +42,7 @@ namespace Difframe
         private bool _readyToProcess;
         
 
-        public ProcessEngine(double inSimilarityThreshold, string inFrameDirectory = null, int inMiniBatchSize = 2)
+        public ProcessEngine(double inSimilarityThreshold = 34.50, string inFrameDirectory = null, int inMiniBatchSize = 2)
         {
             _frameCollector = new FrameCollector();
             _currentFrameIndex = -10;
@@ -282,7 +282,7 @@ namespace Difframe
             _miniBatchSize = inMiniBatchSize;
         }
 
-        public void SetSimilarityThreshold(double inSimilarityThreshold)
+        public void SetSimilarityThreshold(double inSimilarityThreshold = 34.50)
         {
             _similarityThreshold = inSimilarityThreshold;
         }
