@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="LiteDB" Version="5.0.8" />
     <PackageReference Include="OpenCvSharp4.Windows" Version="4.3.0.20200524" />
+    <PackageReference Include="Xabe.FFmpeg" Version="4.1.1" />
   </ItemGroup>
 
 </Project>
