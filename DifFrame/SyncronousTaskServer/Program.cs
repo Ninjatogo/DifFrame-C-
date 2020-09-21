@@ -15,14 +15,19 @@ namespace SyncronousTaskServer
         private int _miniBatchSize;
         private bool _endConnectionSignalReceived;
         private ProcessEngine _engine;
+        private static Stack<int> testRange = new Stack<int>();
 
         public NetworkServer()
         {
             _endConnectionSignalReceived = false;
             _engine = new ProcessEngine(_similarityThreshold, null, _miniBatchSize);
+
+            for(int i = 0; i < 60; i++)
+            {
+                testRange.Push(i);
+            }
         }
 
-        private static Stack<int> testRange = new Stack<int>();
         
         private static int[] GetNextFrameRange(int inMaxLength = 10)
         {
@@ -152,6 +157,48 @@ namespace SyncronousTaskServer
             }
         }
 
+        /// <summary>
+        /// Listen for wandering clients looking for a server to connect to. Guide them home.
+        /// </summary>
+        /// <returns></returns>
+        private Task GuideNewClients(int inListenPort = 11500)
+        {
+            return Task.Run(() =>
+            {
+                var Server = new UdpClient(inListenPort);
+                try
+                {
+                    var ResponseData = Encoding.ASCII.GetBytes("Difframe Node:Server");
+
+                    while (true)
+                    {
+                        var ClientEp = new IPEndPoint(IPAddress.Any, 0);
+                        var ClientRequestData = Server.Receive(ref ClientEp);
+                        var ClientRequest = Encoding.ASCII.GetString(ClientRequestData);
+
+                        if(ClientRequest == "Difframe Node:Client")
+                        {
+                            Console.WriteLine($"Recived {ClientRequest} from {ClientEp.Address}, sending response");
+                            Server.Send(ResponseData, ResponseData.Length, ClientEp);
+                        }
+                    }
+                }
+                catch(Exception e)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(e);
+                    Console.ResetColor();
+                }
+                finally
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Network autodiscovery client guide shutting down.");
+                    Console.ResetColor();
+                    Server.Close();
+                }
+            });
+        }
+
         private Task HandleNewConnection(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
         {
             return Task.Run(() =>
@@ -193,6 +240,9 @@ namespace SyncronousTaskServer
             var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
             var ipAddress = ipHostInfo.AddressList[0];
             var localEndPoint = new IPEndPoint(ipAddress, inPort);
+
+            // Create UDP client guide.
+            GuideNewClients();
 
             // Create a TCP/IP socket.  
             using (var listener = new Socket(ipAddress.AddressFamily,

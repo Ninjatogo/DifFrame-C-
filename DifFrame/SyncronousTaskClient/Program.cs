@@ -94,17 +94,55 @@ namespace SyncronousTaskClient
             }
         }
 
-        public void StartClient(IPAddress inIpAddress, int inPort = 11000)
+        public IPEndPoint FindServer(int inBroadcastPort = 11500)
+        {
+            var Client = new UdpClient();
+            Client.Client.ReceiveTimeout = 2000;
+            Client.Client.SendTimeout = 500;
+
+            var ServerEp = new IPEndPoint(IPAddress.Any, 0);
+            try
+            {
+                var RequestData = Encoding.ASCII.GetBytes("Difframe Node:Client");
+
+                Client.EnableBroadcast = true;
+
+                while (true)
+                {
+                    Client.Send(RequestData, RequestData.Length, new IPEndPoint(IPAddress.Broadcast, inBroadcastPort));
+
+                    var ServerResponseData = Client.Receive(ref ServerEp);
+                    var ServerResponse = Encoding.ASCII.GetString(ServerResponseData);
+                    if (ServerResponse == "Difframe Node:Server")
+                    {
+                        Console.WriteLine($"Recived {ServerResponse} from {ServerEp.Address}");
+                        break;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            finally
+            {
+                Client.Close();
+            }
+            return ServerEp;
+        }
+
+        public void StartClient(int inPort = 11000)
         {
             // Abort if loop fails 10 times
             for (var i = 0; i < 10; i++)
             {
                 try
                 {
-                    var remoteEP = new IPEndPoint(inIpAddress, inPort);
+                    var serverIp = FindServer();
+                    var remoteEP = new IPEndPoint(serverIp.Address, inPort);
 
                     // Create a TCP/IP  socket.  
-                    using var sender = new Socket(inIpAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    using var sender = new Socket(serverIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                     try
                     {
                         sender.Connect(remoteEP);
