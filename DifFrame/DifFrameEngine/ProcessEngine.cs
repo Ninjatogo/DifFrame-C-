@@ -144,7 +144,7 @@ namespace Difframe
                 tupleIndexTracker++;
                 UpdateLoadedFrame(currentTupleSelection.frameNumber);
                 var imageStrip = ExtractDifferences(currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos);
-                _frameCollector.CollectStorageBlock(currentTupleSelection.frameNumber, currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos, inDeltaFileName, 0, y);
+                _frameCollector.RecordDeltaFrameBlockData(currentTupleSelection.frameNumber, currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos, inDeltaFileName, 0, y);
 
                 for(int x = 0; x < inCropWSize - 1; x++)
                 {
@@ -154,7 +154,7 @@ namespace Difframe
                     var frameData = ExtractDifferences(currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos);
                     Cv2.HConcat(imageStrip, frameData, imageStrip);
 
-                    _frameCollector.CollectStorageBlock(currentTupleSelection.frameNumber, currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos, inDeltaFileName, x+1, y);
+                    _frameCollector.RecordDeltaFrameBlockData(currentTupleSelection.frameNumber, currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos, inDeltaFileName, x+1, y);
                 }
 
                 imageStrips.Add(imageStrip);
@@ -287,7 +287,7 @@ namespace Difframe
             _similarityThreshold = inSimilarityThreshold;
         }
 
-        public bool ReadyToProcess()
+        public bool IsReadyToProcess()
         {
             return _readyToProcess;
         }
@@ -300,9 +300,38 @@ namespace Difframe
             _readyToProcess = true;
         }
 
-        public int[] GetDifferenceBlocks()
+        /// <summary>
+        /// Extracts temp storage difference blocks from frame collector.
+        /// Intended to be used by node clients when sending processed blocks to server.
+        /// </summary>
+        /// <param name="inPreferredExtractionSize"></param>
+        /// <returns>Int array of blocks broken down to their base components (frame number, frame position X, frame position Y)</returns>
+        public int[] GetDifferenceBlocks(int inPreferredExtractionSize = 250)
         {
-            //
+            // Resize request size to allow array to fit 300 int limit of NT.ReceiveIntArray
+            if(inPreferredExtractionSize > 300)
+            {
+                inPreferredExtractionSize = 300;
+            }
+            var workingSetDictionary = _frameCollector.GetWorkingSet(inPreferredExtractionSize);
+            var workingSetList = new List<int>();
+
+            var workingSetDictionaryKeysSorted = workingSetDictionary.Keys.ToImmutableSortedSet();
+
+            foreach (var key in workingSetDictionaryKeysSorted)
+            {
+                foreach (var blockPos in workingSetDictionary[key])
+                {
+                    workingSetList.Add(key);
+                    workingSetList.Add(blockPos.FrameBlockX);
+                    workingSetList.Add(blockPos.FrameBlockY);
+                }
+            }
+
+            return workingSetList.ToArray();
         }
+
+        public int GetFrameCount()
+        { return _inputFramesFileNames.Count; }
     }
 }

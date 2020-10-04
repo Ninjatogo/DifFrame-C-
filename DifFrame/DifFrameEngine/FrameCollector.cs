@@ -48,7 +48,7 @@ namespace Difframe
             }
         }
 
-        public void CollectStorageBlock(int inFrameNumber, int inFrameX, int inFrameY, int inDeltaFilename, int inFileBlockX, int inFileBlockY)
+        public void RecordDeltaFrameBlockData(int inFrameNumber, int inFrameX, int inFrameY, int inDeltaFilename, int inFileBlockX, int inFileBlockY)
         {
             Monitor.Enter(_monitorObject);
             try
@@ -108,6 +108,23 @@ namespace Difframe
                     if (itemsAdded >= inWorkingSetSize)
                     {
                         break;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var key in _temp_dictionary_keys)
+                {
+                    while (_diff_block_temporary_dictionary.ContainsKey(key) && _diff_block_temporary_dictionary[key].Count > 0)
+                    {
+                        if (workingSet.ContainsKey(key) == false)
+                        {
+                            workingSet[key] = new Stack<(int FrameBlockX, int FrameBlockY)>();
+                        }
+
+                        workingSet[key].Push(_diff_block_temporary_dictionary[key].Pop());
+                        _temp_block_count--;
+                        itemsAdded++;
                     }
                 }
             }

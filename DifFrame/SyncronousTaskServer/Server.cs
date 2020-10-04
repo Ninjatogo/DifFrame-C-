@@ -21,11 +21,6 @@ namespace SyncronousTaskServer
         {
             _endConnectionSignalReceived = false;
             _engine = new ProcessEngine(_similarityThreshold, null, _miniBatchSize);
-
-            for(int i = 0; i < 60; i++)
-            {
-                testRange.Push(i);
-            }
         }
 
         
@@ -151,9 +146,14 @@ namespace SyncronousTaskServer
 
                 // Receive processed frame data
                 var processOutput = NT.ReceiveIntCollections(inHandler);
+                while (processOutput.receivedSuccessfully)
+                {
+                    // Save process output to database
+                    SaveFrameBlocks(processOutput.collections);
 
-                // Save process output to database
-                SaveFrameBlocks(processOutput.collections);
+                    processOutput = NT.ReceiveIntCollections(inHandler);
+                }
+
             }
         }
 
@@ -234,6 +234,11 @@ namespace SyncronousTaskServer
             _miniBatchSize = inMiniBatchSize;
             _engine.UpdateProjectInput(inProjectFolder);
 
+            for (int i = 0; i < _engine.GetFrameCount(); i++)
+            {
+                testRange.Push(i);
+            }
+
             // Establish the local endpoint for the socket.  
             // Dns.GetHostName returns the name of the
             // host running the application.  
@@ -263,7 +268,7 @@ namespace SyncronousTaskServer
                         // Program is suspended while waiting for an incoming connection.  
                         var handler = listener.Accept();
                         Console.WriteLine("Connection received and being handled");
-                        HandleNewConnection(handler, "file name test", "file location test", "file checksum test");
+                        HandleNewConnection(handler, "file name test", inProjectFolder, "file checksum test");
                     }
                 }
                 catch (Exception e)

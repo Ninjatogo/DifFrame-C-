@@ -88,9 +88,13 @@ namespace SyncronousTaskClient
 
                 // Process data for frame range
                 var processedData = _engine.GetDifferenceBlocks();
+                while(processedData.Length > 0)
+                {
+                    // Send processed results back to server
+                    NT.SendIntCollections(inHandler, processedData);
 
-                // Send processed results back to server
-                NT.SendIntCollections(inHandler, processedData);
+                    processedData = _engine.GetDifferenceBlocks();
+                }
             }
         }
 
@@ -152,9 +156,9 @@ namespace SyncronousTaskClient
                         if (resultsTuple.sucessfulInitiaition)
                         {
                             Console.WriteLine("Initiated with server successfully.");
-                            //_engine = new ProcessEngine(resultsTuple.similarityThreshold, resultsTuple.fileLocation, resultsTuple.miniBatchSize);
+                            _engine = new ProcessEngine(resultsTuple.similarityThreshold, resultsTuple.fileLocation, resultsTuple.miniBatchSize);
 
-                            //ReceiveFrameProcessRequests(sender);
+                            ReceiveFrameProcessRequests(sender);
                         }
                     }
                     catch (ArgumentNullException ane)

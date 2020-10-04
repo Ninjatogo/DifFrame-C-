@@ -1,7 +1,6 @@
 ﻿using SyncronousTaskClient;
 using SyncronousTaskServer;
 using System;
-using System.Net;
 
 namespace ProcessNode
 {
@@ -35,6 +34,7 @@ namespace ProcessNode
         public void StartConnection(string inProjectFolder, double inSimilarityThreshold = 34.50, int inMiniBatchSize = 2, int inPort = 11000)
         {
             EndConnection();
+
             _server.StartServerListener(inProjectFolder, inSimilarityThreshold, inMiniBatchSize, inPort);
         }
 

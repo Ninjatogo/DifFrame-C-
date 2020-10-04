@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DifFrameEngine\DifFrameEngine.csproj" />
+    <ProjectReference Include="..\ProcessNode\ProcessNode.csproj" />
   </ItemGroup>
 
 </Project>
