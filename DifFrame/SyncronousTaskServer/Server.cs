@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Difframe;
+using LiteDB.Engine;
 using NetworkDataTools;
 
 namespace SyncronousTaskServer
@@ -31,7 +32,17 @@ namespace SyncronousTaskServer
             // Return next set of frames to be processed
             if(testRange.Count > 0)
             {
-                currentRange.Add(testRange.Pop());
+                if(testRange.Count >= inMaxLength)
+                {
+                    for(var i = 0; i < inMaxLength; i++)
+                    {
+                        currentRange.Add(testRange.Pop());
+                    }
+                }
+                else
+                {
+                    currentRange.Add(testRange.Pop());
+                }
             }
 
             return currentRange.ToArray();
@@ -243,7 +254,32 @@ namespace SyncronousTaskServer
             // Dns.GetHostName returns the name of the
             // host running the application.  
             var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
-            var ipAddress = ipHostInfo.AddressList[0];
+            var ipAddress = ipHostInfo.AddressList[1];
+            if (ipHostInfo.AddressList.Length > 1)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Multiple host IPs found!");
+                Console.ResetColor();
+                while(true)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkYellow;
+                    Console.WriteLine("Please choose the IP you would like to use for TCP server:");
+                    for (var i = 0; i < ipHostInfo.AddressList.Length; i++)
+                    {
+                        Console.WriteLine($"({i}) - {ipHostInfo.AddressList[i]}");
+                    }
+                    Console.ResetColor();
+                    var choice = Console.ReadLine();
+                    if (int.TryParse(choice, out int choiceInt))
+                    {
+                        if ((choiceInt >= 0) && (choiceInt < ipHostInfo.AddressList.Length))
+                        {
+                            ipAddress = ipHostInfo.AddressList[choiceInt];
+                            break;
+                        }
+                    }
+                }
+            }
             var localEndPoint = new IPEndPoint(ipAddress, inPort);
 
             // Create UDP client guide.
@@ -261,6 +297,9 @@ namespace SyncronousTaskServer
                     listener.Bind(localEndPoint);
                     listener.Listen(10);
 
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"TCP server listening on {listener.LocalEndPoint}");
+                    Console.ResetColor();
                     // Start listening for connections.  
                     while (_endConnectionSignalReceived == false)
                     {
@@ -273,7 +312,9 @@ namespace SyncronousTaskServer
                 }
                 catch (Exception e)
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine(e.ToString());
+                    Console.ResetColor();
                 }
             }
             Console.WriteLine("\nPress ENTER to continue...");
