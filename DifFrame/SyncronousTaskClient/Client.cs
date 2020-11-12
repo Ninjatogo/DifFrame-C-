@@ -164,19 +164,19 @@ namespace SyncronousTaskClient
                     catch (ArgumentNullException ane)
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("ArgumentNullException : {0}", ane.ToString());
+                        Console.WriteLine($"ArgumentNullException : {ane}");
                         Console.ResetColor();
                     }
                     catch (SocketException se)
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("SocketException : {0}", se.ToString());
+                        Console.WriteLine($"SocketException : {se}");
                         Console.ResetColor();
                     }
                     catch (Exception e)
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Unexpected exception : {0}", e.ToString());
+                        Console.WriteLine($"Unexpected exception : {e}");
                         Console.ResetColor();
                     }
                     finally
