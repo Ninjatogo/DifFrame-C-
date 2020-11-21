@@ -12,6 +12,27 @@ namespace NetworkDataTools
 {
     public static class NT
     {
+        public static void SendByteArray(Socket inHandler, byte[] inBytes)
+        {
+            // Send byte count to expect
+            SendInt(inHandler, inBytes.Length);
+
+            var response = ReceiveString(inHandler);
+            if(response != "Ready")
+            {
+                throw new Exception("Client ready resonse not received correctly");
+            }
+
+            inHandler.Send(inBytes);
+
+            // Receive client finished download confirmation
+            response = ReceiveString(inHandler);
+            if (response != "Ok")
+            {
+                throw new Exception("Client finished resonse not received correctly");
+            }
+        }
+
         public static void SendInt(Socket inHandler, int inInt)
         {
             inHandler.Send(DT.ConvertIntToByteArray(inInt));
@@ -89,6 +110,49 @@ namespace NetworkDataTools
             
 
             return (true, defaultException);
+        }
+
+        public static byte[] ReceiveByteArray(Socket inHandler)
+        {
+            // Container for buffer collections
+            var buffer = new List<byte>();
+            var receivedBytes = 0;
+
+            // Receive expected byte count
+            var expectedCount = ReceiveInt(inHandler);
+
+            // Signal to client that ready to recieve
+            SendString(inHandler, "Ready");
+
+            while (receivedBytes < expectedCount)
+            {
+                // Byte buffer for received server messages
+                var bytes = new byte[32768];
+
+                // Receive message from server
+                var bytesRec = inHandler.Receive(bytes);
+
+                // If byte buffer fills, simply add to list
+                if (bytesRec == bytes.Length)
+                {
+                    buffer.AddRange(bytes);
+                }
+                // Else only add the received bytes to list
+                else
+                {
+                    for (int i = 0; i < bytesRec; i++)
+                    {
+                        buffer.Add(bytes[i]);
+                    }
+                }
+
+                receivedBytes += bytesRec;
+            }
+
+            // Send finished confirmation
+            SendString(inHandler, "Ok");
+
+            return buffer.ToArray();
         }
 
         public static int ReceiveInt(Socket inHandler)

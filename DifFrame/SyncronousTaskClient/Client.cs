@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -11,15 +10,15 @@ namespace SyncronousTaskClient
     public class NetworkClient
     {
         private ProcessEngine _engine;
+        private IPEndPoint _serverIpEndPoint;
 
         public NetworkClient()
         {
             //
         }
 
-        private (bool sucessfulInitiaition, double similarityThreshold, int miniBatchSize, string fileLocation) ServerInitiation(Socket inHandler)
+        private (bool sucessfulInitiaition, double similarityThreshold, int miniBatchSize) ServerInitiation(Socket inHandler)
         {
-            string _fileLocation = null;
             var _initiationSuccessful = false;
             double _similarityThreshold = 0.0;
             int _miniBatchSize = 0;
@@ -32,11 +31,6 @@ namespace SyncronousTaskClient
                 // Echo video filename to server
                 NT.SendString(inHandler, _fileName);
 
-                // Receive file location from server
-                _fileLocation = NT.ReceiveString(inHandler);
-                // Echo file location
-                NT.SendString(inHandler, _fileLocation);
-
                 // Receive similarity threshold from server
                 _similarityThreshold = NT.ReceiveDouble(inHandler);
                 // Echo similarity threshold
@@ -46,9 +40,6 @@ namespace SyncronousTaskClient
                 _miniBatchSize = NT.ReceiveInt(inHandler);
                 // Echo mini batch size
                 NT.SendInt(inHandler, _miniBatchSize);
-
-                // Send file checksum to ensure both machines are referring to same file
-                NT.SendString(inHandler, "file checksum test");
 
                 // Receive "file good" confirmation from server
                 var response = NT.ReceiveString(inHandler);
@@ -63,10 +54,10 @@ namespace SyncronousTaskClient
             }
 
             // Proceed to connection handler stage 2
-            return (_initiationSuccessful, _similarityThreshold, _miniBatchSize, _fileLocation);
+            return (_initiationSuccessful, _similarityThreshold, _miniBatchSize);
         }
 
-        private void ReceiveFrameProcessRequests(Socket inHandler)
+        private void ReceiveFrameProcessRequests(Socket inHandler, bool inLocalDataMode)
         {
             while (true)
             {
@@ -75,6 +66,10 @@ namespace SyncronousTaskClient
                 {
                     foreach(var arr in frameRangeToProcess.collections)
                     {
+                        if (inLocalDataMode == false)
+                        {
+                            DownloadFrames(arr);
+                        }
                         _engine.IdentifyDifferences(arr);
                     }
                 }
@@ -135,7 +130,58 @@ namespace SyncronousTaskClient
             return ServerEp;
         }
 
-        public void StartClient(int inPort = 11000)
+        private bool DownloadFrames(int[] inFrames, int inPort = 11501)
+        {
+            var remoteEP = new IPEndPoint(_serverIpEndPoint.Address, inPort);
+            using var sender = new Socket(_serverIpEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            try
+            {
+                sender.Connect(remoteEP);
+
+                // For each frame request, send frame index then download frame from server
+                foreach(var frameIndex in inFrames)
+                {
+                    NT.SendInt(sender, frameIndex);
+                }
+                // Send frame request
+
+
+                // Receive frame data
+                //var frameDatas
+
+                return true;
+            }
+            catch (ArgumentNullException ane)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"ArgumentNullException : {ane}");
+                Console.ResetColor();
+            }
+            catch (SocketException se)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"SocketException : {se}");
+                Console.ResetColor();
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Unexpected exception : {e}");
+                Console.ResetColor();
+            }
+            finally
+            {
+                // Release the socket.
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Socket shutdown!");
+                sender.Shutdown(SocketShutdown.Both);
+                sender.Close();
+                Console.ResetColor();
+            }
+            return false;
+        }
+
+        public void StartClient(int inPort = 11000, bool inLocalDataMode = false)
         {
             // Abort if loop fails 10 times
             for (var i = 0; i < 10; i++)
@@ -143,10 +189,11 @@ namespace SyncronousTaskClient
                 try
                 {
                     var serverIp = FindServer();
-                    var remoteEP = new IPEndPoint(serverIp.Address, inPort);
+                    _serverIpEndPoint = serverIp;
+                    var remoteEP = new IPEndPoint(_serverIpEndPoint.Address, inPort);
 
                     // Create a TCP/IP  socket.  
-                    using var sender = new Socket(serverIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    using var sender = new Socket(_serverIpEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                     try
                     {
                         sender.Connect(remoteEP);
@@ -156,9 +203,9 @@ namespace SyncronousTaskClient
                         if (resultsTuple.sucessfulInitiaition)
                         {
                             Console.WriteLine("Initiated with server successfully.");
-                            _engine = new ProcessEngine(resultsTuple.similarityThreshold, resultsTuple.fileLocation, resultsTuple.miniBatchSize);
+                            _engine = new ProcessEngine(inLocalDataMode, null, resultsTuple.similarityThreshold, resultsTuple.miniBatchSize);
 
-                            ReceiveFrameProcessRequests(sender);
+                            ReceiveFrameProcessRequests(sender, inLocalDataMode);
                         }
                     }
                     catch (ArgumentNullException ane)

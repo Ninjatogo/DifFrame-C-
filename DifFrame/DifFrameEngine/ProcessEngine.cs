@@ -36,32 +36,71 @@ namespace Difframe
         private int _frameDivisionDimensionX;
         private int _frameDivisionDimensionY;
         private List<string> _inputFramesFileNames;
+        private Dictionary<int, Mat> _inputFrameData;
+        private Dictionary<int, bool> _downloadCacheStaleFrames;
+        private int _downloadedCacheEndFrameIndex;
         private string _inputFrameDirectory;
         private double _similarityThreshold;
         private int _miniBatchSize;
+        private bool _localDataMode;
         private bool _readyToProcess;
         
-
-        public ProcessEngine(double inSimilarityThreshold = 34.50, string inFrameDirectory = null, int inMiniBatchSize = 2)
+        public ProcessEngine(bool inLocalDataMode = true, string inFrameDirectory = null, double inSimilarityThreshold = 34.50, int inMiniBatchSize = 2)
         {
             _frameCollector = new FrameCollector();
             _currentFrameIndex = -10;
+            _downloadedCacheEndFrameIndex = -10;
             _currentFrameData = new Mat();
-            _inputFramesFileNames = new List<string>();
             _similarityThreshold = inSimilarityThreshold;
             _miniBatchSize = inMiniBatchSize;
             _frameWidth = 1;
             _frameHeight = 1;
             _frameDivisionDimensionX = 1;
             _frameDivisionDimensionY = 1;
-            if(inFrameDirectory != null)
+            _localDataMode = inLocalDataMode;
+            _downloadCacheStaleFrames = new Dictionary<int, bool>();
+
+            if (inLocalDataMode == true && inFrameDirectory != null)
             {
+                _inputFramesFileNames = new List<string>();
                 _inputFrameDirectory = inFrameDirectory;
                 LoadFilePaths();
                 SetDicingRate();
                 _readyToProcess = true;
             }
+            if (inLocalDataMode == false)
+            {
+                _inputFrameData = new Dictionary<int, Mat>();
+                SetDicingRate();
+                _readyToProcess = false;
+            }
         }
+
+        private Mat GetFrameData(int inRequestedFrameIndex)
+        {
+            if (_localDataMode)
+            {
+                return Cv2.ImRead(_inputFramesFileNames[inRequestedFrameIndex]);
+            }
+            else
+            {
+                return _inputFrameData[inRequestedFrameIndex];
+            }
+        }
+
+        public int GetLastFrameIndex()
+        {
+            if (_localDataMode)
+            {
+                return _inputFramesFileNames.Count - 1;
+            }
+            else
+            {
+                return _downloadedCacheEndFrameIndex;
+            }
+        }
+
+
 
         private void LoadFilePaths()
         {
@@ -103,7 +142,7 @@ namespace Difframe
             if(inFrameIndex != _currentFrameIndex)
             {
                 _currentFrameIndex = inFrameIndex;
-                _currentFrameData = Cv2.ImRead(_inputFramesFileNames[inFrameIndex + 1]);
+                _currentFrameData = GetFrameData(inFrameIndex);
             }
         }
 
@@ -142,7 +181,7 @@ namespace Difframe
                 // Start off image array with one frame block to give loop something to append to
                 var currentTupleSelection = workingSetTupleList[tupleIndexTracker];
                 tupleIndexTracker++;
-                UpdateLoadedFrame(currentTupleSelection.frameNumber);
+                UpdateLoadedFrame(currentTupleSelection.frameNumber + 1);
                 var imageStrip = ExtractDifferences(currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos);
                 _frameCollector.RecordDeltaFrameBlockData(currentTupleSelection.frameNumber, currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos, inDeltaFileName, 0, y);
 
@@ -150,7 +189,7 @@ namespace Difframe
                 {
                     currentTupleSelection = workingSetTupleList[tupleIndexTracker];
                     tupleIndexTracker++;
-                    UpdateLoadedFrame(currentTupleSelection.frameNumber);
+                    UpdateLoadedFrame(currentTupleSelection.frameNumber + 1);
                     var frameData = ExtractDifferences(currentTupleSelection.Item2.blockXPos, currentTupleSelection.Item2.blockYPos);
                     Cv2.HConcat(imageStrip, frameData, imageStrip);
 
@@ -171,10 +210,10 @@ namespace Difframe
 
         private void IdentifyDifferencesSingleFrame(int inFileIndex)
         {
-            if (inFileIndex + 1 < _inputFramesFileNames.Count)
+            if (inFileIndex + 1 < GetLastFrameIndex())
             {
-                var frameA = Cv2.ImRead(_inputFramesFileNames[inFileIndex]);
-                var frameB = Cv2.ImRead(_inputFramesFileNames[inFileIndex + 1]);
+                var frameA = GetFrameData(inFileIndex);
+                var frameB = GetFrameData(inFileIndex + 1);
 
                 var frameAResized = ScaleFrame(frameA);
                 var frameBResized = ScaleFrame(frameB);
@@ -207,6 +246,76 @@ namespace Difframe
             }
         }
 
+
+
+
+        public void MatConvertTest()
+        {
+            var frameA = GetFrameData(0);
+            var grayFrameA = new Mat();
+            Cv2.CvtColor(frameA, grayFrameA, ColorConversionCodes.RGB2GRAY);
+
+            byte[] grayFrameBytes;
+            var encodedData = Cv2.ImEncode(".jpg", frameA, out grayFrameBytes);
+
+            var decodedData = Cv2.ImDecode(grayFrameBytes, ImreadModes.Color);
+
+            var currentFileName = _frameCollector.GetCurrentStoreDictFilename();
+            SaveSingleImageToDisk(currentFileName.Item2, decodedData);
+        }
+
+        public Dictionary<int, byte[]> GetFrameDataForUpload(int[] inFrameIndices)
+        {
+            var frameDatas = new Dictionary<int, byte[]>();
+            foreach (var frameIndex in inFrameIndices)
+            {
+                frameDatas[frameIndex] = GetFrameData(frameIndex).ImEncode();
+            }
+
+            return frameDatas;
+        }
+
+        /// <summary>
+        /// Downloads and converts byte arrays into grayscale image Mats
+        /// </summary>
+        /// <param name="inFrames"></param>
+        public void LoadDownloadedFrameData(Dictionary<int, byte[]> inFrames)
+        {
+            // For each downloaded frame, convert from byte array to Mat and add to dictionary
+            foreach(var frame in inFrames)
+            {
+                var decodedData = Cv2.ImDecode(frame.Value, ImreadModes.Grayscale);
+                _inputFrameData[frame.Key] = decodedData;
+            }
+
+            var pruneList = new List<int>();
+
+            // For each stale frame in stale frame dictionary, prune from download cache dictionary
+            foreach(var frame in _downloadCacheStaleFrames)
+            {
+                if(_inputFrameData.ContainsKey(frame.Key - 1))
+                {
+                    // Check stale item index AND previous index are present in dictionary
+                    if (_downloadCacheStaleFrames.ContainsKey(frame.Key - 1))
+                    {
+                        _inputFrameData.Remove(frame.Key);
+                        pruneList.Add(frame.Key);
+                    }
+                }
+                else
+                {
+                    _inputFrameData.Remove(frame.Key);
+                    pruneList.Add(frame.Key);
+                }
+            }
+
+            // Prune stale list
+            foreach(var item in pruneList)
+            {
+                _downloadCacheStaleFrames.Remove(item);
+            }
+        }
+
         public void GenerateAndSaveDeltaFrame()
         {
             if (_readyToProcess)
@@ -232,35 +341,25 @@ namespace Difframe
             }
         }
 
-        public void IdentifyDifferences(int[] inFileIndices = null)
+        public void IdentifyDifferences(int[] inFileIndices)
         {
             if (_readyToProcess)
             {
-                if (inFileIndices != null)
+                Parallel.ForEach(inFileIndices, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (index) =>
                 {
-                    Parallel.ForEach(inFileIndices, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (index) =>
-                    {
-                        IdentifyDifferencesSingleFrame(index);
-                    });
-                }
-                else
-                {
-                    Parallel.For(0, _inputFramesFileNames.Count, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, index =>
-                    {
-                        IdentifyDifferencesSingleFrame(index);
-                    });
-                }
+                    IdentifyDifferencesSingleFrame(index);
+                });
             }
         }
 
-        public void SetDicingRate(int inRate=2)
+        public void SetDicingRate(int inRate = 2)
         {
-            if (_inputFramesFileNames.Count > 0)
+            if (GetLastFrameIndex() > 0)
             {
                 try
                 {
                     // Load one of the frames and use that as baseline spec for rest of collection
-                    var img = Cv2.ImRead(_inputFramesFileNames[0]);
+                    var img = GetFrameData(0);
                     _frameWidth = img.Width;
                     _frameHeight = img.Height;
 
@@ -330,8 +429,5 @@ namespace Difframe
 
             return workingSetList.ToArray();
         }
-
-        public int GetFrameCount()
-        { return _inputFramesFileNames.Count; }
     }
 }

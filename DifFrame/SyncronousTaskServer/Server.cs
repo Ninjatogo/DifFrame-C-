@@ -17,11 +17,12 @@ namespace SyncronousTaskServer
         private bool _endConnectionSignalReceived;
         private ProcessEngine _engine;
         private static Stack<int> testRange = new Stack<int>();
+        private IPAddress _ipAddress;
 
         public NetworkServer()
         {
             _endConnectionSignalReceived = false;
-            _engine = new ProcessEngine(_similarityThreshold, null, _miniBatchSize);
+            _engine = new ProcessEngine(true, null, _similarityThreshold, _miniBatchSize);
         }
 
         
@@ -61,7 +62,7 @@ namespace SyncronousTaskServer
             }
         }
 
-        private string ClientInitiation(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
+        private string ClientInitiation(Socket inHandler, string inFileName)
         {
             string clientName = null;
 
@@ -76,15 +77,6 @@ namespace SyncronousTaskServer
                 var data = NT.ReceiveString(inHandler);
                 // If client doesn't echo filename restart handshaking loop 
                 if (data != inFileName)
-                {
-                    failureDetected = true;
-                }
-
-                // Send video file location to client
-                NT.SendString(inHandler, inFileLocation);
-                // Receive file location echo from client
-                data = NT.ReceiveString(inHandler);
-                if (data != inFileLocation)
                 {
                     failureDetected = true;
                 }
@@ -107,11 +99,8 @@ namespace SyncronousTaskServer
                     failureDetected = true;
                 }
 
-                // Receive checksum response from client
-                data = NT.ReceiveString(inHandler);
-
                 // If returned checksum matches what server has calculated
-                if ((data == inChecksum) && failureDetected == false)
+                if (failureDetected == false)
                 {
                     // Send file good confirmation to client
                     NT.SendString(inHandler, "OK");
@@ -168,6 +157,11 @@ namespace SyncronousTaskServer
             }
         }
 
+        private void UploadFrames(int[] inFrames)
+        {
+            //
+        }
+
         /// <summary>
         /// Listen for wandering clients looking for a server to connect to. Guide them home.
         /// </summary>
@@ -210,13 +204,84 @@ namespace SyncronousTaskServer
             });
         }
 
-        private Task HandleNewConnection(Socket inHandler, string inFileName, string inFileLocation, string inChecksum)
+        private Task HandleFileDownloadRequests(Socket inHandler)
         {
             return Task.Run(() =>
             {
                 try
                 {
-                    var clientName = ClientInitiation(inHandler, inFileName, inFileLocation, inChecksum);
+                    // Receive frame requests
+                    var frameRequests = NT.ReceiveIntCollections(inHandler);
+
+                    // Send frame data
+                    if (frameRequests.receivedSuccessfully)
+                    {
+                        //
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(e);
+                    Console.ResetColor();
+                }
+                finally
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Socket shutdown!");
+                    inHandler.Shutdown(SocketShutdown.Both);
+                    inHandler.Close();
+                    Console.ResetColor();
+                }
+            });
+        }
+
+        private Task AwaitFileDownloadRequests(int inListenPort = 11501)
+        {
+            return Task.Run(() =>
+            {
+                var localEndPoint = new IPEndPoint(_ipAddress, inListenPort);
+                // Create a TCP/IP socket.
+                using (var listener = new Socket(_ipAddress.AddressFamily,
+                    SocketType.Stream, ProtocolType.Tcp))
+                {
+                    // Bind the socket to the local endpoint and
+                    // listen for incoming connections.  
+                    try
+                    {
+                        listener.Bind(localEndPoint);
+                        listener.Listen(10);
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"TCP server listening on {listener.LocalEndPoint}");
+                        Console.ResetColor();
+                        // Start listening for connections.  
+                        while (_endConnectionSignalReceived == false)
+                        {
+                            Console.WriteLine("Waiting for a connection...");
+                            // Program is suspended while waiting for an incoming connection.
+                            var handler = listener.Accept();
+                            Console.WriteLine("Connection received and being handled");
+                            HandleFileDownloadRequests(handler);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(e.ToString());
+                        Console.ResetColor();
+                    }
+                }
+            });
+        }
+
+        private Task HandleNewClientNode(Socket inHandler, string inFileName)
+        {
+            return Task.Run(() =>
+            {
+                try
+                {
+                    var clientName = ClientInitiation(inHandler, inFileName);
                     if(clientName != null)
                     {
                         IssueClientFrameProcessRequests(inHandler);
@@ -245,7 +310,7 @@ namespace SyncronousTaskServer
             _miniBatchSize = inMiniBatchSize;
             _engine.UpdateProjectInput(inProjectFolder);
 
-            for (int i = 0; i < _engine.GetFrameCount(); i++)
+            for (int i = 0; i < _engine.GetLastFrameIndex(); i++)
             {
                 testRange.Push(i);
             }
@@ -280,10 +345,14 @@ namespace SyncronousTaskServer
                     }
                 }
             }
+
+            _ipAddress = ipAddress;
             var localEndPoint = new IPEndPoint(ipAddress, inPort);
 
             // Create UDP client guide.
             GuideNewClients();
+            // Create file download request handler.
+            AwaitFileDownloadRequests();
 
             // Create a TCP/IP socket.  
             using (var listener = new Socket(ipAddress.AddressFamily,
@@ -304,10 +373,10 @@ namespace SyncronousTaskServer
                     while (_endConnectionSignalReceived == false)
                     {
                         Console.WriteLine("Waiting for a connection...");
-                        // Program is suspended while waiting for an incoming connection.  
+                        // Program is suspended while waiting for an incoming connection.
                         var handler = listener.Accept();
                         Console.WriteLine("Connection received and being handled");
-                        HandleNewConnection(handler, "file name test", inProjectFolder, "file checksum test");
+                        HandleNewClientNode(handler, "file name test");
                     }
                 }
                 catch (Exception e)

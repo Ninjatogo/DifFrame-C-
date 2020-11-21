@@ -38,7 +38,7 @@ namespace ProcessNode
             _server.StartServerListener(inProjectFolder, inSimilarityThreshold, inMiniBatchSize, inPort);
         }
 
-        public bool StartConnection(int inPort = 11000)
+        public bool StartConnection(int inPort = 11000, bool inLocalDataMode = false)
         {
             EndConnection();
 
@@ -47,7 +47,7 @@ namespace ProcessNode
                 _connectionLinkInProgress = true;
                 try
                 {
-                    _client.StartClient(inPort);
+                    _client.StartClient(inPort, inLocalDataMode);
                     _connectionEstablished = true;
                 }
                 catch(Exception e)
