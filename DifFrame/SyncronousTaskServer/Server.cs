@@ -157,11 +157,6 @@ namespace SyncronousTaskServer
             }
         }
 
-        private void UploadFrames(int[] inFrames)
-        {
-            //
-        }
-
         /// <summary>
         /// Listen for wandering clients looking for a server to connect to. Guide them home.
         /// </summary>
@@ -210,13 +205,20 @@ namespace SyncronousTaskServer
             {
                 try
                 {
-                    // Receive frame requests
-                    var frameRequests = NT.ReceiveIntCollections(inHandler);
+                    // Receive notification of amount of requests to expect
+                    var expectedRequests = NT.ReceiveInt(inHandler);
 
-                    // Send frame data
-                    if (frameRequests.receivedSuccessfully)
+                    // For each frame request, receive frame index then upload frame to client
+                    for (var i = 0; i < expectedRequests; i++)
                     {
-                        //
+                        // Receive frame request
+                        var requestedFrameIndex = NT.ReceiveInt(inHandler);
+
+                        // Grab frame data
+                        var frameData = _engine.GetFrameDataForUpload(requestedFrameIndex);
+
+                        // Send frame data
+                        NT.SendByteArray(inHandler, frameData);
                     }
                 }
                 catch (Exception e)
@@ -228,7 +230,7 @@ namespace SyncronousTaskServer
                 finally
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Socket shutdown!");
+                    Console.WriteLine("DownloadRequest Socket shutdown!");
                     inHandler.Shutdown(SocketShutdown.Both);
                     inHandler.Close();
                     Console.ResetColor();

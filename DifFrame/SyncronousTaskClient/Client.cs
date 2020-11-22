@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -68,8 +69,16 @@ namespace SyncronousTaskClient
                     {
                         if (inLocalDataMode == false)
                         {
-                            DownloadFrames(arr);
+                            if (DownloadFrames(arr))
+                            {
+                                Console.WriteLine("Frame download successful!");
+                            }
                         }
+
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"Frame range to process: {arr[0]}-{arr[^1]}");
+                        Console.ResetColor();
+
                         _engine.IdentifyDifferences(arr);
                     }
                 }
@@ -132,39 +141,52 @@ namespace SyncronousTaskClient
 
         private bool DownloadFrames(int[] inFrames, int inPort = 11501)
         {
+            var downloadSuccessful = false;
             var remoteEP = new IPEndPoint(_serverIpEndPoint.Address, inPort);
             using var sender = new Socket(_serverIpEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             try
             {
                 sender.Connect(remoteEP);
 
+                var frameDatas = new Dictionary<int, byte[]>();
+
+                // Notify server of how many requests to expect
+                NT.SendInt(sender, inFrames.Length);
+
                 // For each frame request, send frame index then download frame from server
                 foreach(var frameIndex in inFrames)
                 {
+                    // Send frame request
                     NT.SendInt(sender, frameIndex);
+
+                    // Receive frame data
+                    var frameData = NT.ReceiveByteArray(sender);
+
+                    // Store frame data in temporary dictionary
+                    frameDatas[frameIndex] = frameData;
                 }
-                // Send frame request
 
+                _engine.LoadDownloadedFrameData(frameDatas);
 
-                // Receive frame data
-                //var frameDatas
-
-                return true;
+                downloadSuccessful = true;
             }
             catch (ArgumentNullException ane)
             {
+                downloadSuccessful = false;
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"ArgumentNullException : {ane}");
                 Console.ResetColor();
             }
             catch (SocketException se)
             {
+                downloadSuccessful = false;
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"SocketException : {se}");
                 Console.ResetColor();
             }
             catch (Exception e)
             {
+                downloadSuccessful = false;
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Unexpected exception : {e}");
                 Console.ResetColor();
@@ -178,7 +200,8 @@ namespace SyncronousTaskClient
                 sender.Close();
                 Console.ResetColor();
             }
-            return false;
+
+            return downloadSuccessful;
         }
 
         public void StartClient(int inPort = 11000, bool inLocalDataMode = false)

@@ -275,6 +275,11 @@ namespace Difframe
             return frameDatas;
         }
 
+        public byte[] GetFrameDataForUpload(int inFrameIndex)
+        {
+            return GetFrameData(inFrameIndex).ImEncode();
+        }
+
         /// <summary>
         /// Downloads and converts byte arrays into grayscale image Mats
         /// </summary>
