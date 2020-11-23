@@ -18,12 +18,13 @@ namespace ConsoleTester
                 }
             }
 
+            var fileDirectory = "";
             if (modeChoice == "s")
             {
                 while (true)
                 {
                     Console.WriteLine("Please supply file directory");
-                    string fileDirectory = Console.ReadLine();
+                    fileDirectory = Console.ReadLine();
                     // Check that file directory is valid
 
                     // If valid, break from loop
@@ -34,7 +35,7 @@ namespace ConsoleTester
                 }
             }
             
-            var node = new Node(modeChoice == "s");
+            var node = new Node(modeChoice == "s", fileDirectory);
             node.StartConnection();
         }
     }
