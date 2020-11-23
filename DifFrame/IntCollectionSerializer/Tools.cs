@@ -159,12 +159,13 @@ namespace NetworkDataTools
         {
             // Data buffer for incoming data.  
             var bytes = new byte[12];
-            var bytesRec = 0;
+            byte[] bytesTrimmed;
 
             // Receive number of arrays to expect for next payload
-            bytesRec = inHandler.Receive(bytes);
-            Array.Copy(bytes, new byte[bytesRec], bytesRec);
-            var numberOfArraysToExpect = DT.ConvertByteArrayToInt(new byte[bytesRec]);
+            int bytesRec = inHandler.Receive(bytes);
+            bytesTrimmed = new byte[bytesRec];
+            Array.Copy(bytes, bytesTrimmed, bytesRec);
+            var numberOfArraysToExpect = DT.ConvertByteArrayToInt(bytesTrimmed);
 
             return numberOfArraysToExpect;
         }
