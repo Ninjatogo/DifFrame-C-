@@ -7,7 +7,7 @@ namespace ConsoleTester
     {
         static void Main(string[] args)
         {
-            var modeChoice = "q";
+            string modeChoice;
             while (true)
             {
                 Console.WriteLine("Start node in (s) server mode or (c) client mode?");
@@ -18,28 +18,24 @@ namespace ConsoleTester
                 }
             }
 
-            var fileDirectory = "";
-            if(modeChoice == "s")
+            if (modeChoice == "s")
             {
                 while (true)
                 {
                     Console.WriteLine("Please supply file directory");
-                    fileDirectory = Console.ReadLine();
+                    string fileDirectory = Console.ReadLine();
                     // Check that file directory is valid
 
                     // If valid, break from loop
+                    if (fileDirectory.Trim().Length > 0)
+                    {
+                        break;
+                    }
                 }
             }
             
             var node = new Node(modeChoice == "s");
-            if (modeChoice == "s")
-            {
-                node.StartConnection(fileDirectory);
-            }
-            else
-            {
-                node.StartConnection();
-            }
+            node.StartConnection();
         }
     }
 }

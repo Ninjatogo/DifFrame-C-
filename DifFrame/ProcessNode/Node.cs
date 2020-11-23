@@ -13,7 +13,7 @@ namespace ProcessNode
         private NetworkServer _server;
         private NetworkClient _client;
 
-        public Node(bool isServer = false)
+        public Node(bool isServer = false, string inProjectDirectory = null)
         {
             _isServer = isServer;
             _connectionLinkInProgress = false;
@@ -21,7 +21,7 @@ namespace ProcessNode
 
             if (_isServer)
             {
-                _server = new NetworkServer();
+                _server = new NetworkServer(inProjectDirectory);
             }
             else
             {
@@ -31,32 +31,32 @@ namespace ProcessNode
 
         // TODO: Start client and server instances using tasks to allow them to be stopped easily and allow node to multitask
 
-        public void StartConnection(string inProjectFolder, double inSimilarityThreshold = 34.50, int inMiniBatchSize = 2, int inPort = 11000)
+        public bool StartConnection(int inPort = 11000, bool inLocalDataMode = false, double inSimilarityThreshold = 34.50, int inMiniBatchSize = 2)
         {
             EndConnection();
 
-            _server.StartServerListener(inProjectFolder, inSimilarityThreshold, inMiniBatchSize, inPort);
-        }
-
-        public bool StartConnection(int inPort = 11000, bool inLocalDataMode = false)
-        {
-            EndConnection();
-
-            if (_connectionLinkInProgress == false && _connectionEstablished == false)
+            if (_isServer)
             {
-                _connectionLinkInProgress = true;
-                try
+                _server.StartServerListener(inSimilarityThreshold, inMiniBatchSize, inPort);
+            }
+            else
+            {
+                if (_connectionLinkInProgress == false && _connectionEstablished == false)
                 {
-                    _client.StartClient(inPort, inLocalDataMode);
-                    _connectionEstablished = true;
-                }
-                catch(Exception e)
-                {
-                    // Log message
-                }
-                finally
-                {
-                    _connectionLinkInProgress = false;
+                    _connectionLinkInProgress = true;
+                    try
+                    {
+                        _client.StartClient(inPort, inLocalDataMode);
+                        _connectionEstablished = true;
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
+                    finally
+                    {
+                        _connectionLinkInProgress = false;
+                    }
                 }
             }
             return false;

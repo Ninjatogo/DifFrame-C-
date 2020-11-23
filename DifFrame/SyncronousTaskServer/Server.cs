@@ -19,10 +19,10 @@ namespace SyncronousTaskServer
         private static Stack<int> testRange = new Stack<int>();
         private IPAddress _ipAddress;
 
-        public NetworkServer()
+        public NetworkServer(string inProjectDirectory)
         {
             _endConnectionSignalReceived = false;
-            _engine = new ProcessEngine(true, null, _similarityThreshold, _miniBatchSize);
+            _engine = new ProcessEngine(true, inProjectDirectory, _similarityThreshold, _miniBatchSize);
         }
 
         
@@ -306,11 +306,10 @@ namespace SyncronousTaskServer
             });
         }
 
-        public void StartServerListener(string inProjectFolder, double inSimilarityThreshold = 34.50, int inMiniBatchSize = 2, int inPort = 11000)
+        public void StartServerListener(double inSimilarityThreshold = 34.50, int inMiniBatchSize = 2, int inPort = 11000)
         {
             _similarityThreshold = inSimilarityThreshold;
             _miniBatchSize = inMiniBatchSize;
-            _engine.UpdateProjectInput(inProjectFolder);
 
             for (int i = 0; i < _engine.GetLastFrameIndex(); i++)
             {
