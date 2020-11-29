@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using Difframe;
 using NetworkDataTools;
+using Spectre.Console;
 
 namespace SyncronousTaskClient
 {
@@ -71,22 +72,18 @@ namespace SyncronousTaskClient
                         {
                             if (DownloadFrames(arr))
                             {
-                                Console.WriteLine("Frame download successful!");
+                                AnsiConsole.MarkupLine("[bold black on lime]Frame download successful![/]");
                             }
                         }
 
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"Frame range to process: {arr[0]}-{arr[^1]}");
-                        Console.ResetColor();
+                        AnsiConsole.MarkupLine($"[silver on navyblue]Frame range to process: {arr[0]}-{arr[^1]}[/]");
 
                         _engine.IdentifyDifferences(arr);
                     }
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"Frame range to process count: {frameRangeToProcess.collections.Count}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"[silver on navyblue]Frame range to process count: {frameRangeToProcess.collections.Count}[/]");
                     break;
                 }
 
@@ -123,14 +120,14 @@ namespace SyncronousTaskClient
                     var ServerResponse = Encoding.ASCII.GetString(ServerResponseData);
                     if (ServerResponse == "Difframe Node:Server")
                     {
-                        Console.WriteLine($"Recived {ServerResponse} from {ServerEp.Address}");
+                        AnsiConsole.MarkupLine($"[silver on navyblue]Recived {ServerResponse} from {ServerEp.Address}[/]");
                         break;
                     }
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                AnsiConsole.WriteException(e);
             }
             finally
             {
@@ -170,35 +167,17 @@ namespace SyncronousTaskClient
 
                 downloadSuccessful = true;
             }
-            catch (ArgumentNullException ane)
-            {
-                downloadSuccessful = false;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"ArgumentNullException : {ane}");
-                Console.ResetColor();
-            }
-            catch (SocketException se)
-            {
-                downloadSuccessful = false;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"SocketException : {se}");
-                Console.ResetColor();
-            }
             catch (Exception e)
             {
                 downloadSuccessful = false;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Unexpected exception : {e}");
-                Console.ResetColor();
+                AnsiConsole.WriteException(e);
             }
             finally
             {
                 // Release the socket.
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Socket shutdown!");
+                AnsiConsole.MarkupLine("[bold yellow on blue]Socket shutdown![/]");
                 sender.Shutdown(SocketShutdown.Both);
                 sender.Close();
-                Console.ResetColor();
             }
 
             return downloadSuccessful;
@@ -225,43 +204,27 @@ namespace SyncronousTaskClient
 
                         if (resultsTuple.sucessfulInitiaition)
                         {
-                            Console.WriteLine("Initiated with server successfully.");
+                            AnsiConsole.MarkupLine("[bold black on lime]Initiated with server successfully.[/]");
                             _engine = new ProcessEngine(inLocalDataMode, null, resultsTuple.similarityThreshold, resultsTuple.miniBatchSize);
 
                             ReceiveFrameProcessRequests(sender, inLocalDataMode);
                         }
                     }
-                    catch (ArgumentNullException ane)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"ArgumentNullException : {ane}");
-                        Console.ResetColor();
-                    }
-                    catch (SocketException se)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"SocketException : {se}");
-                        Console.ResetColor();
-                    }
                     catch (Exception e)
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"Unexpected exception : {e}");
-                        Console.ResetColor();
+                        AnsiConsole.WriteException(e);
                     }
                     finally
                     {
                         // Release the socket.
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Socket shutdown!");
+                        AnsiConsole.MarkupLine("[bold yellow on blue]Socket shutdown![/]");
                         sender.Shutdown(SocketShutdown.Both);
                         sender.Close();
-                        Console.ResetColor();
                     }
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.ToString());
+                    AnsiConsole.WriteException(e);
                 }
             }
         }

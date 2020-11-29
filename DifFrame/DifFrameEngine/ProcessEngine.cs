@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using OpenCvSharp;
 using OpenCvSharp.Quality;
+using Spectre.Console;
 
 namespace Difframe
 {
@@ -374,9 +375,7 @@ namespace Difframe
                 }
                 catch(Exception e)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(e.Message);
-                    Console.ResetColor();
+                    AnsiConsole.WriteException(e);
                 }
             }
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using ProcessNode;
+using Spectre.Console;
 
 namespace ConsoleTester
 {
@@ -10,9 +11,8 @@ namespace ConsoleTester
             string modeChoice;
             while (true)
             {
-                Console.WriteLine("Start node in (s) server mode or (c) client mode?");
-                modeChoice = Console.ReadLine();
-                if(modeChoice == "s" || modeChoice == "c")
+                modeChoice = AnsiConsole.Ask<string>("Start node in [green](s) server mode[/] or [green](c) client mode[/]?");
+                if (modeChoice == "s" || modeChoice == "c")
                 {
                     break;
                 }
@@ -23,8 +23,7 @@ namespace ConsoleTester
             {
                 while (true)
                 {
-                    Console.WriteLine("Please supply file directory");
-                    fileDirectory = Console.ReadLine();
+                    fileDirectory = AnsiConsole.Ask<string>("Please supply [yellow]file directory[/]:");
                     // Check that file directory is valid
 
                     // If valid, break from loop

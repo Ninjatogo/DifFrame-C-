@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Difframe;
 using LiteDB.Engine;
 using NetworkDataTools;
+using Spectre.Console;
 
 namespace SyncronousTaskServer
 {
@@ -110,9 +111,7 @@ namespace SyncronousTaskServer
 
                     // Proceed to connection handler stage 2
                     clientName = data;
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Client completed initiation handshake.");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine("[bold black on lime]Client completed initiation handshake.[/]");
                     break;
                 }
                 else
@@ -137,9 +136,7 @@ namespace SyncronousTaskServer
                 {
                     // Send frame indices to be processed
                     NT.SendInt(inHandler, 0);
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"Frames left to process: {nextFrameRange.Length}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"[silver on yellow]Frames left to process: {nextFrameRange.Length}[/]");
                     break;
                 }
                 NT.SendIntCollections(inHandler, nextFrameRange);
@@ -178,22 +175,18 @@ namespace SyncronousTaskServer
 
                         if(ClientRequest == "Difframe Node:Client")
                         {
-                            Console.WriteLine($"Recived {ClientRequest} from {ClientEp.Address}, sending response");
+                            AnsiConsole.MarkupLine($"[silver on navyblue]Recived {ClientRequest} from {ClientEp.Address}, sending response[/]");
                             Server.Send(ResponseData, ResponseData.Length, ClientEp);
                         }
                     }
                 }
                 catch(Exception e)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
+                    AnsiConsole.WriteException(e);
                 }
                 finally
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Network autodiscovery client guide shutting down.");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine("[bold yellow on blue]Network autodiscovery client guide shutting down.[/]");
                     Server.Close();
                 }
             });
@@ -223,17 +216,13 @@ namespace SyncronousTaskServer
                 }
                 catch (Exception e)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
+                    AnsiConsole.WriteException(e);
                 }
                 finally
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("DownloadRequest Socket shutdown!");
+                    AnsiConsole.MarkupLine("[bold yellow on blue]DownloadRequest Socket shutdown![/]");
                     inHandler.Shutdown(SocketShutdown.Both);
                     inHandler.Close();
-                    Console.ResetColor();
                 }
             });
         }
@@ -254,24 +243,20 @@ namespace SyncronousTaskServer
                         listener.Bind(localEndPoint);
                         listener.Listen(10);
 
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"TCP server listening on {listener.LocalEndPoint}");
-                        Console.ResetColor();
+                        AnsiConsole.MarkupLine($"[bold yellow on blue](Download request handler) TCP server listening on {listener.LocalEndPoint}[/]");
                         // Start listening for connections.  
                         while (_endConnectionSignalReceived == false)
                         {
-                            Console.WriteLine("Waiting for a connection...");
+                            AnsiConsole.MarkupLine("[yellow]Waiting for a connection...[/]");
                             // Program is suspended while waiting for an incoming connection.
                             var handler = listener.Accept();
-                            Console.WriteLine("Connection received and being handled");
+                            AnsiConsole.MarkupLine("[bold yellow]Connection received and being handled[/]");
                             HandleFileDownloadRequests(handler);
                         }
                     }
                     catch (Exception e)
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine(e.ToString());
-                        Console.ResetColor();
+                        AnsiConsole.WriteException(e);
                     }
                 }
             });
@@ -291,17 +276,13 @@ namespace SyncronousTaskServer
                 }
                 catch(Exception e)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(e);
-                    Console.ResetColor();
+                    AnsiConsole.WriteException(e);
                 }
                 finally
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Socket shutdown!");
+                    AnsiConsole.MarkupLine("[bold yellow on blue]Socket shutdown![/]");
                     inHandler.Shutdown(SocketShutdown.Both);
                     inHandler.Close();
-                    Console.ResetColor();
                 }
             });
         }
@@ -311,7 +292,7 @@ namespace SyncronousTaskServer
             _similarityThreshold = inSimilarityThreshold;
             _miniBatchSize = inMiniBatchSize;
 
-            for (int i = 0; i < _engine.GetLastFrameIndex(); i++)
+            for (int i = 0; i < (_engine.GetLastFrameIndex() + 1); i++)
             {
                 testRange.Push(i);
             }
@@ -323,18 +304,15 @@ namespace SyncronousTaskServer
             var ipAddress = ipHostInfo.AddressList[1];
             if (ipHostInfo.AddressList.Length > 1)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("Multiple host IPs found!");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine("[bold black on aqua]Multiple host IPs found![/]");
                 while(true)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkYellow;
-                    Console.WriteLine("Please choose the IP you would like to use for TCP server:");
+                    AnsiConsole.MarkupLine("[silver on fuchsia]Please choose the IP you would like to use for TCP server:[/]");
                     for (var i = 0; i < ipHostInfo.AddressList.Length; i++)
                     {
-                        Console.WriteLine($"({i}) - {ipHostInfo.AddressList[i]}");
+                        AnsiConsole.MarkupLine($"[silver on fuchsia]({i}) - {ipHostInfo.AddressList[i]}[/]");
                     }
-                    Console.ResetColor();
+
                     var choice = Console.ReadLine();
                     if (int.TryParse(choice, out int choiceInt))
                     {
@@ -367,24 +345,20 @@ namespace SyncronousTaskServer
                     listener.Bind(localEndPoint);
                     listener.Listen(10);
 
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"TCP server listening on {listener.LocalEndPoint}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"[bold yellow on blue](Main client listener) TCP server listening on {listener.LocalEndPoint}[/]");
                     // Start listening for connections.  
                     while (_endConnectionSignalReceived == false)
                     {
-                        Console.WriteLine("Waiting for a connection...");
+                        AnsiConsole.MarkupLine("[yellow]Waiting for a connection...[/]");
                         // Program is suspended while waiting for an incoming connection.
                         var handler = listener.Accept();
-                        Console.WriteLine("Connection received and being handled");
+                        AnsiConsole.MarkupLine("[bold yellow]Connection received and being handled[/]");
                         HandleNewClientNode(handler, "file name test");
                     }
                 }
                 catch (Exception e)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(e.ToString());
-                    Console.ResetColor();
+                    AnsiConsole.WriteException(e);
                 }
             }
             Console.WriteLine("\nPress ENTER to continue...");

@@ -1,6 +1,7 @@
 ﻿using SyncronousTaskClient;
 using SyncronousTaskServer;
 using System;
+using Spectre.Console;
 
 namespace ProcessNode
 {
@@ -51,7 +52,7 @@ namespace ProcessNode
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine(e.Message);
+                        AnsiConsole.WriteException(e);
                     }
                     finally
                     {

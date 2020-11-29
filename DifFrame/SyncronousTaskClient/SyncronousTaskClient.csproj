@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.31.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\DifFrameEngine\DifFrameEngine.csproj" />
     <ProjectReference Include="..\IntCollectionSerializer\NetworkDataTools.csproj" />
   </ItemGroup>
