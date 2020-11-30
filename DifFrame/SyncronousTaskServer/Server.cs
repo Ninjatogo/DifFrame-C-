@@ -292,7 +292,7 @@ namespace SyncronousTaskServer
             _similarityThreshold = inSimilarityThreshold;
             _miniBatchSize = inMiniBatchSize;
 
-            for (int i = 0; i < (_engine.GetLastFrameIndex() + 1); i++)
+            for (int i = _engine.GetLastFrameIndex(); i > -1; i--)
             {
                 testRange.Push(i);
             }

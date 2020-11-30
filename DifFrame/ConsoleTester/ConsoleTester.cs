@@ -11,7 +11,7 @@ namespace ConsoleTester
             string modeChoice;
             while (true)
             {
-                modeChoice = AnsiConsole.Ask<string>("Start node in [green](s) server mode[/] or [green](c) client mode[/]?");
+                modeChoice = AnsiConsole.Ask<string>("Start node in [blue](s) server mode[/] or [blue](c) client mode[/]?");
                 if (modeChoice == "s" || modeChoice == "c")
                 {
                     break;
@@ -23,7 +23,7 @@ namespace ConsoleTester
             {
                 while (true)
                 {
-                    fileDirectory = AnsiConsole.Ask<string>("Please supply [yellow]file directory[/]:");
+                    fileDirectory = AnsiConsole.Ask<string>("Please supply [blue]file directory[/]:");
                     // Check that file directory is valid
 
                     // If valid, break from loop

@@ -9,13 +9,23 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DifFrameEngine", "DifFrameE
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkDataTools", "IntCollectionSerializer\NetworkDataTools.csproj", "{A14971A2-24F0-4C28-BF72-A2CD095C92A5}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SyncronousTaskClient", "SyncronousTaskClient\SyncronousTaskClient.csproj", "{40B71AF2-3770-488B-8C40-451E92371268}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ClientNode", "SyncronousTaskClient\ClientNode.csproj", "{40B71AF2-3770-488B-8C40-451E92371268}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SyncronousTaskServer", "SyncronousTaskServer\SyncronousTaskServer.csproj", "{A68CC13E-C1E4-4730-9F78-475433AD9FBC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ServerNode", "SyncronousTaskServer\ServerNode.csproj", "{A68CC13E-C1E4-4730-9F78-475433AD9FBC}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProcessNode", "ProcessNode\ProcessNode.csproj", "{68EE3E71-209C-4C21-A527-47A196F506F8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestGUI", "TestGUI\TestGUI.csproj", "{B7631B5D-0268-4809-80C1-B78D36B8E180}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DifframeEngine.UnitTests", "DifframeEngineUnitTests\DifframeEngine.UnitTests.csproj", "{772ACE85-3B52-49EB-9A94-0D8D4C7FB58D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetworkDataTools.UnitTests", "NetworkDataTools.UnitTests\NetworkDataTools.UnitTests.csproj", "{7F469FED-715E-496C-A658-8C8B973A1423}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProcessNode.UnitTests", "ProcessNode.UnitTests\ProcessNode.UnitTests.csproj", "{42E46353-E741-426D-A477-278532A89381}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientNode.UnitTests", "ClientNode.UnitTests\ClientNode.UnitTests.csproj", "{8BE6EEC1-6CDA-402C-93CD-AB44CF43F73E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerNode.UnitTests", "ServerNode.UnitTests\ServerNode.UnitTests.csproj", "{9B7F5840-06B3-421F-AD8F-FDD794803A3D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +61,26 @@ Global
 		{B7631B5D-0268-4809-80C1-B78D36B8E180}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B7631B5D-0268-4809-80C1-B78D36B8E180}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B7631B5D-0268-4809-80C1-B78D36B8E180}.Release|Any CPU.Build.0 = Release|Any CPU
+		{772ACE85-3B52-49EB-9A94-0D8D4C7FB58D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{772ACE85-3B52-49EB-9A94-0D8D4C7FB58D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{772ACE85-3B52-49EB-9A94-0D8D4C7FB58D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{772ACE85-3B52-49EB-9A94-0D8D4C7FB58D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F469FED-715E-496C-A658-8C8B973A1423}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F469FED-715E-496C-A658-8C8B973A1423}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F469FED-715E-496C-A658-8C8B973A1423}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F469FED-715E-496C-A658-8C8B973A1423}.Release|Any CPU.Build.0 = Release|Any CPU
+		{42E46353-E741-426D-A477-278532A89381}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42E46353-E741-426D-A477-278532A89381}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42E46353-E741-426D-A477-278532A89381}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42E46353-E741-426D-A477-278532A89381}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8BE6EEC1-6CDA-402C-93CD-AB44CF43F73E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8BE6EEC1-6CDA-402C-93CD-AB44CF43F73E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8BE6EEC1-6CDA-402C-93CD-AB44CF43F73E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8BE6EEC1-6CDA-402C-93CD-AB44CF43F73E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9B7F5840-06B3-421F-AD8F-FDD794803A3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B7F5840-06B3-421F-AD8F-FDD794803A3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B7F5840-06B3-421F-AD8F-FDD794803A3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B7F5840-06B3-421F-AD8F-FDD794803A3D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
